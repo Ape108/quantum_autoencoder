@@ -7,9 +7,9 @@ from typing import Optional, Tuple, List
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.circuit.library import RealAmplitudes
-from qiskit.quantum_info import Statevector
-from qiskit.primitives import SamplerV2 as Sampler
-from qiskit.primitives import EstimatorV2 as Estimator
+from qiskit.quantum_info import Statevector, SparsePauliOp
+from qiskit.primitives import Sampler
+from qiskit.primitives import Estimator
 
 class QuantumAutoencoder:
     """
@@ -24,7 +24,8 @@ class QuantumAutoencoder:
         self,
         n_qubits: int,
         n_latent: int,
-        reps: int = 5,
+        n_auxiliary: int = 2,
+        reps: int = 5,  # Match notebook's repetitions
         options: Optional[dict] = None
     ):
         """
@@ -33,12 +34,14 @@ class QuantumAutoencoder:
         Args:
             n_qubits: Number of qubits in the input state
             n_latent: Number of qubits in the latent (compressed) space
+            n_auxiliary: Number of auxiliary qubits
             reps: Number of repetitions in the parameterized circuit
             options: Dictionary of options for the primitives
         """
         self.n_qubits = n_qubits
         self.n_latent = n_latent
         self.n_trash = n_qubits - n_latent
+        self.n_auxiliary = n_auxiliary
         self.reps = reps
         
         # Initialize primitives with options
@@ -49,28 +52,36 @@ class QuantumAutoencoder:
         self._create_circuit()
     
     def _create_circuit(self) -> None:
-        """Create the quantum autoencoder circuit."""
+        """Create the quantum autoencoder circuit with RealAmplitudes ansatz."""
         # Initialize registers with descriptive names
-        qr = QuantumRegister(self.n_qubits + 2 * self.n_trash + 1, "q")
+        total_qubits = self.n_qubits + self.n_auxiliary + self.n_trash + 1
+        qr = QuantumRegister(total_qubits, "q")
         cr = ClassicalRegister(1, "meas")  # Using 'meas' as per V2 convention
         self.circuit = QuantumCircuit(qr, cr)
         
-        # Add encoder
-        encoder = RealAmplitudes(self.n_qubits, reps=self.reps)
-        self.circuit.compose(encoder, range(self.n_qubits), inplace=True)
+        # Add encoder with RealAmplitudes ansatz
+        encoder = RealAmplitudes(
+            self.n_qubits + self.n_auxiliary,
+            reps=self.reps,
+            insert_barriers=True  # Help with optimization
+        )
+        
+        # Add the encoder
+        self.circuit.compose(encoder, range(self.n_qubits + self.n_auxiliary), inplace=True)
         
         # Add barrier for clarity
         self.circuit.barrier()
         
         # Add SWAP test components
-        auxiliary_qubit = self.n_qubits + 2 * self.n_trash
+        auxiliary_qubit = self.n_qubits + self.n_auxiliary + self.n_trash
         self.circuit.h(auxiliary_qubit)
         
+        # SWAP test between trash and reference qubits
         for i in range(self.n_trash):
             self.circuit.cswap(
                 auxiliary_qubit,
                 self.n_latent + i,
-                self.n_latent + self.n_trash + i
+                self.n_qubits + self.n_auxiliary + i
             )
         
         self.circuit.h(auxiliary_qubit)
@@ -87,9 +98,15 @@ class QuantumAutoencoder:
         Returns:
             Encoded quantum circuit
         """
-        qc = QuantumCircuit(self.n_qubits)
+        qc = QuantumCircuit(self.n_qubits + self.n_auxiliary)
         qc = qc.compose(state)
-        encoder = RealAmplitudes(self.n_qubits, reps=self.reps)
+            
+        # Create encoder with RealAmplitudes
+        encoder = RealAmplitudes(
+            self.n_qubits + self.n_auxiliary,
+            reps=self.reps,
+            insert_barriers=True
+        )
         
         if parameter_values is not None:
             encoder = encoder.assign_parameters(parameter_values)
@@ -108,19 +125,29 @@ class QuantumAutoencoder:
         Returns:
             Decoded quantum circuit
         """
-        qc = QuantumCircuit(self.n_qubits)
+        qc = QuantumCircuit(self.n_qubits + self.n_auxiliary)
         qc = qc.compose(encoded_state)
         
         # Reset trash qubits
         for i in range(self.n_trash):
             qc.reset(self.n_latent + i)
+            
+        # Create encoder with RealAmplitudes
+        encoder = RealAmplitudes(
+            self.n_qubits + self.n_auxiliary,
+            reps=self.reps,
+            insert_barriers=True
+        )
         
-        # Apply inverse encoder
-        encoder = RealAmplitudes(self.n_qubits, reps=self.reps)
         if parameter_values is not None:
             encoder = encoder.assign_parameters(parameter_values)
             
         qc = qc.compose(encoder.inverse())
+        
+        # Trace out auxiliary qubits
+        for i in range(self.n_qubits, self.n_qubits + self.n_auxiliary):
+            qc.reset(i)
+            
         return qc
     
     def get_fidelity(self, original_state: QuantumCircuit, 
@@ -138,12 +165,24 @@ class QuantumAutoencoder:
         """
         # Create an observable for fidelity measurement
         original_sv = Statevector(original_state)
-        observable = original_sv.projector()
+        operator = original_sv.to_operator()
+        observable = SparsePauliOp.from_operator(operator)
         
-        # Use Estimator V2 to calculate fidelity
-        job = self.estimator.run([(reconstructed_state, observable)])
+        # Ensure reconstructed state has same number of qubits as original
+        if reconstructed_state.num_qubits != original_state.num_qubits:
+            raise ValueError(
+                f"Number of qubits in reconstructed state ({reconstructed_state.num_qubits}) "
+                f"does not match original state ({original_state.num_qubits})"
+            )
+        
+        # Use Estimator to calculate fidelity
+        job = self.estimator.run(
+            circuits=[reconstructed_state],
+            observables=[observable],
+            parameter_values=None
+        )
         result = job.result()
-        fidelity = np.sqrt(np.abs(result[0].data.evs[0]))
+        fidelity = np.sqrt(np.abs(result.values[0]))
         
         return float(fidelity.real)
     
