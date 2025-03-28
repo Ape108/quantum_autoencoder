@@ -2,8 +2,10 @@
 Digit Compression Example
 
 This example demonstrates compressing noisy images of digits 0 and 1 using a quantum autoencoder.
+Uses Qiskit V2 primitives for improved hardware compatibility and performance.
 """
 
+from typing import Optional, Dict, Any, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 from qiskit import QuantumCircuit
@@ -13,7 +15,7 @@ from qiskit_machine_learning.utils import algorithm_globals
 from quantum_autoencoder.core.circuit import QuantumAutoencoder
 from quantum_autoencoder.core.training import train_autoencoder
 
-def create_digit_dataset(num_samples: int = 2, draw: bool = True) -> tuple:
+def create_digit_dataset(num_samples: int = 2, draw: bool = True) -> Tuple[np.ndarray, np.ndarray]:
     """
     Create a dataset of noisy 0 and 1 digits.
     
@@ -91,8 +93,26 @@ def create_digit_dataset(num_samples: int = 2, draw: bool = True) -> tuple:
     
     return train_images, np.array(train_labels)
 
-def run_digits_example():
-    """Run the digit compression example."""
+def run_digits_example(options: Optional[Dict[str, Any]] = None):
+    """
+    Run the digit compression example.
+    
+    Args:
+        options: Optional dictionary of options for the V2 primitives
+    """
+    # Default options for V2 primitives with batch processing optimization
+    if options is None:
+        options = {
+            "optimization_level": 3,     # Maximum optimization
+            "resilience_level": 1,       # Basic error mitigation
+            "shots": 1024,              # Number of shots per circuit
+            "max_circuits_per_job": 20,  # Batch processing for efficiency
+            "dynamical_decoupling": {    # Advanced error mitigation
+                "enable": True,
+                "scheme": "XX"
+            }
+        }
+    
     # Parameters
     n_qubits = 5  # 32 amplitudes = 2^5
     n_latent = 3
@@ -104,8 +124,8 @@ def run_digits_example():
     # Create feature map
     feature_map = RawFeatureVector(2 ** n_qubits)
     
-    # Create autoencoder
-    autoencoder = QuantumAutoencoder(n_qubits, n_latent)
+    # Create autoencoder with V2 primitive options
+    autoencoder = QuantumAutoencoder(n_qubits, n_latent, options=options)
     print(f"\nCreated quantum autoencoder: {n_qubits} qubits → {n_latent} qubits")
     
     # Get training circuit
@@ -117,7 +137,8 @@ def run_digits_example():
         training_circuit,
         input_data=images,
         maxiter=150,
-        plot_progress=True
+        plot_progress=True,
+        options=options
     )
     
     # Test compression on new samples
@@ -128,9 +149,9 @@ def run_digits_example():
         # Create input state
         input_circuit = feature_map.bind_parameters(image)
         
-        # Encode and decode
-        encoded_state = autoencoder.encode(input_circuit)
-        decoded_state = autoencoder.decode(encoded_state)
+        # Encode and decode with optimal parameters
+        encoded_state = autoencoder.encode(input_circuit, parameter_values=optimal_params)
+        decoded_state = autoencoder.decode(encoded_state, parameter_values=optimal_params)
         
         # Calculate fidelity
         fidelity = autoencoder.get_fidelity(input_circuit, decoded_state)
@@ -149,4 +170,19 @@ def run_digits_example():
         plt.show()
 
 if __name__ == "__main__":
-    run_digits_example() 
+    # Example with custom options optimized for digit compression
+    custom_options = {
+        "optimization_level": 3,
+        "resilience_level": 2,  # Enhanced error mitigation for complex states
+        "shots": 4096,         # More shots for better statistics
+        "max_circuits_per_job": 20,
+        "dynamical_decoupling": {
+            "enable": True,
+            "scheme": "XY4"    # More robust error mitigation scheme
+        },
+        "approximation": {     # Enable approximation for faster execution
+            "enable": True,
+            "method": "automatic"
+        }
+    }
+    run_digits_example(options=custom_options) 
