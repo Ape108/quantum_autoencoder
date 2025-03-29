@@ -22,37 +22,37 @@ wheels/
 
 # Virtual Environment
 venv/
-ENV/
 env/
-.env/
+ENV/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.project
+.pydevproject
+.settings/
 
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb
 
-# Distribution
-dist/
-build/
-*.egg-info/
-
 # Testing
-.pytest_cache/
 .coverage
 htmlcov/
+.tox/
+.pytest_cache/
 
-# Misc
+# Documentation
+docs/_build/
+
+# Experiment outputs (optional, comment out if you want to track these)
+# experiments/outputs/
+# experiments/parameters/
+
+# OS-specific
 .DS_Store
+Thumbs.db
 *.png
-*.pyc
-
-# New additions from the code block
-*.egg-info/
-dist/
-build/
-.ipynb_checkpoints/ 
+*.pyc 
