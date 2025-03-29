@@ -128,7 +128,7 @@ class QuantumAutoencoder:
 ```
 quantum_autoencoder/
 ├── docs/                    # Documentation
-│   ├── README.md           # Detailed documentation
+│   ├── TECHNICAL.md        # Detailed technical documentation
 │   ├── CREDITS.md          # Credits and references
 │   ├── experiments.md      # Experiment results
 │   └── images/             # Documentation images
