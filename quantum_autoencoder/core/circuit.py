@@ -1,16 +1,15 @@
 """
-Quantum Autoencoder Circuit Implementation
+Quantum Autoencoder Circuit Implementation using U-V encoder architecture
 """
 
 from typing import Optional, Tuple, List
 
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit.circuit.library import RealAmplitudes
+from qiskit.circuit import Parameter
 from qiskit.quantum_info import Statevector
 from qiskit.primitives import Sampler
 from qiskit.primitives import Estimator
-from qiskit.quantum_info import SparsePauliOp
 
 class QuantumAutoencoder:
     """
@@ -18,15 +17,14 @@ class QuantumAutoencoder:
     
     This class implements a quantum autoencoder that can compress quantum states
     into a lower-dimensional representation while preserving essential information.
-    Uses V2 primitives for improved hardware compatibility and performance.
+    Uses U-V encoder architecture for better compression.
     """
     
     def __init__(
         self,
         n_qubits: int,
         n_latent: int,
-        n_auxiliary: int = 2,
-        reps: int = 5,
+        reps: int = 2,
         options: Optional[dict] = None
     ):
         """
@@ -35,52 +33,81 @@ class QuantumAutoencoder:
         Args:
             n_qubits: Number of qubits in the input state
             n_latent: Number of qubits in the latent (compressed) space
-            n_auxiliary: Number of auxiliary qubits (not used in encoder/decoder)
             reps: Number of repetitions in the parameterized circuit
             options: Dictionary of options for the primitives
         """
         self.n_qubits = n_qubits
         self.n_latent = n_latent
         self.n_trash = n_qubits - n_latent
-        self.n_auxiliary = n_auxiliary
         self.reps = reps
         
         # Initialize primitives with options
+        if options is None:
+            options = {
+                "optimization_level": 3,
+                "resilience_level": 1,
+                "shots": 1024,  # Reduced shots for faster training
+                "dynamical_decoupling": {"enable": True}
+            }
         self.sampler = Sampler(options=options)
         self.estimator = Estimator(options=options)
+        
+        # Create encoders with distinct parameter names
+        self.encoder_u = self._create_encoder('u')
+        self.encoder_v = self._create_encoder('v')
+        
+        # Number of parameters for each encoder
+        self.n_params_u = len(self.encoder_u.parameters)
+        self.n_params_v = len(self.encoder_v.parameters)
         
         # Create the full circuit
         self._create_circuit()
     
+    def _create_encoder(self, name: str) -> QuantumCircuit:
+        """Create an encoder circuit with unique parameter names."""
+        qc = QuantumCircuit(self.n_qubits, name=f'encoder_{name}')
+        
+        # Calculate number of parameters (reduced from original)
+        n_layers = self.reps
+        n_qubits = self.n_qubits
+        
+        # Create parameters with unique names
+        params = [Parameter(f'{name}_{i}') for i in range(n_layers * n_qubits)]
+        param_index = 0
+        
+        # Build the circuit layer by layer
+        for layer in range(n_layers):
+            # Rotation layer (only RY gates)
+            for qubit in range(n_qubits):
+                qc.ry(params[param_index], qubit)
+                param_index += 1
+            
+            # Entanglement layer (linear)
+            for i in range(0, n_qubits - 1, 2):
+                qc.cx(i, i + 1)
+            for i in range(1, n_qubits - 1, 2):
+                qc.cx(i, i + 1)
+        
+        return qc
+    
     def _create_circuit(self) -> None:
         """Create the quantum autoencoder circuit."""
-        # Initialize registers with descriptive names
-        total_qubits = self.n_qubits + 2 * self.n_trash + 1
-        qr = QuantumRegister(total_qubits, "q")
-        cr = ClassicalRegister(1, "meas")  # Using 'meas' as per V2 convention
+        # Initialize registers
+        qr = QuantumRegister(self.n_qubits, "q")
+        cr = ClassicalRegister(1, "meas")
         self.circuit = QuantumCircuit(qr, cr)
         
-        # Add encoder (only on input qubits)
-        encoder = RealAmplitudes(self.n_qubits, reps=self.reps)
-        self.circuit.compose(encoder, range(self.n_qubits), inplace=True)
+        # Add encoder U
+        self.circuit.compose(self.encoder_u, range(self.n_qubits), inplace=True)
         
         # Add barrier for clarity
         self.circuit.barrier()
         
-        # Add SWAP test components
-        auxiliary_qubit = self.n_qubits + 2 * self.n_trash
-        self.circuit.h(auxiliary_qubit)
+        # Add encoder V
+        self.circuit.compose(self.encoder_v, range(self.n_qubits), inplace=True)
         
-        # SWAP test between trash and reference qubits
-        for i in range(self.n_trash):
-            self.circuit.cswap(
-                auxiliary_qubit,
-                self.n_latent + i,  # Trash qubits
-                self.n_qubits + i   # Reference qubits
-            )
-        
-        self.circuit.h(auxiliary_qubit)
-        self.circuit.measure(auxiliary_qubit, cr[0])
+        # Add measurement
+        self.circuit.measure(self.n_latent, cr[0])
     
     def encode(self, state: QuantumCircuit, parameter_values: Optional[np.ndarray] = None) -> QuantumCircuit:
         """
@@ -93,14 +120,26 @@ class QuantumAutoencoder:
         Returns:
             Encoded quantum circuit
         """
+        if parameter_values is not None:
+            # Split parameters between U and V encoders
+            params_u = parameter_values[:self.n_params_u]
+            params_v = parameter_values[self.n_params_u:]
+        else:
+            params_u = np.zeros(self.n_params_u)
+            params_v = np.zeros(self.n_params_v)
+        
+        # Create encoding circuit
         qc = QuantumCircuit(self.n_qubits)
         qc = qc.compose(state)
-        encoder = RealAmplitudes(self.n_qubits, reps=self.reps)
         
-        if parameter_values is not None:
-            encoder = encoder.assign_parameters(parameter_values)
-            
-        qc = qc.compose(encoder)
+        # Apply U encoder
+        u_encoder = self.encoder_u.assign_parameters(params_u)
+        qc = qc.compose(u_encoder)
+        
+        # Apply V encoder
+        v_encoder = self.encoder_v.assign_parameters(params_v)
+        qc = qc.compose(v_encoder)
+        
         return qc
     
     def decode(self, encoded_state: QuantumCircuit, parameter_values: Optional[np.ndarray] = None) -> QuantumCircuit:
@@ -114,26 +153,36 @@ class QuantumAutoencoder:
         Returns:
             Decoded quantum circuit
         """
+        if parameter_values is not None:
+            # Split parameters between U and V encoders
+            params_u = parameter_values[:self.n_params_u]
+            params_v = parameter_values[self.n_params_u:]
+        else:
+            params_u = np.zeros(self.n_params_u)
+            params_v = np.zeros(self.n_params_v)
+        
+        # Create decoding circuit
         qc = QuantumCircuit(self.n_qubits)
         qc = qc.compose(encoded_state)
+        
+        # Apply inverse V encoder
+        v_decoder = self.encoder_v.assign_parameters(params_v).inverse()
+        qc = qc.compose(v_decoder)
         
         # Reset trash qubits
         for i in range(self.n_trash):
             qc.reset(self.n_latent + i)
         
-        # Apply inverse encoder
-        encoder = RealAmplitudes(self.n_qubits, reps=self.reps)
-        if parameter_values is not None:
-            encoder = encoder.assign_parameters(parameter_values)
-            
-        qc = qc.compose(encoder.inverse())
+        # Apply inverse U encoder
+        u_decoder = self.encoder_u.assign_parameters(params_u).inverse()
+        qc = qc.compose(u_decoder)
+        
         return qc
     
     def get_fidelity(self, original_state: QuantumCircuit, 
                      reconstructed_state: QuantumCircuit) -> float:
         """
         Calculate the fidelity between original and reconstructed states.
-        Uses V2 Estimator for improved accuracy.
         
         Args:
             original_state: Original quantum state
@@ -142,19 +191,12 @@ class QuantumAutoencoder:
         Returns:
             Fidelity between the states
         """
-        # Create an observable for fidelity measurement
-        original_sv = Statevector(original_state)
-        operator = original_sv.to_operator()
-        observable = SparsePauliOp.from_operator(operator)
+        # Get statevectors
+        sv_original = Statevector(original_state)
+        sv_reconstructed = Statevector(reconstructed_state)
         
-        # Use Estimator to calculate fidelity
-        job = self.estimator.run(
-            circuits=[reconstructed_state],
-            observables=[observable],
-            parameter_values=None
-        )
-        result = job.result()
-        fidelity = np.sqrt(np.abs(result.values[0]))
+        # Calculate fidelity directly
+        fidelity = np.abs(sv_original.inner(sv_reconstructed)) ** 2
         
         return float(fidelity.real)
     
@@ -163,6 +205,6 @@ class QuantumAutoencoder:
         Get the circuit used for training the autoencoder.
         
         Returns:
-            Training circuit with SWAP test
+            Training circuit
         """
         return self.circuit.copy() 
