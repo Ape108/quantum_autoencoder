@@ -106,8 +106,8 @@ class QuantumAutoencoder:
         # Add encoder V
         self.circuit.compose(self.encoder_v, range(self.n_qubits), inplace=True)
         
-        # Add measurement
-        self.circuit.measure(self.n_latent, cr[0])
+        # Add measurement on the first trash qubit (qubit after the latent space)
+        self.circuit.measure(0, cr[0])  # Measure first qubit as trash
     
     def encode(self, state: QuantumCircuit, parameter_values: Optional[np.ndarray] = None) -> QuantumCircuit:
         """
@@ -207,4 +207,74 @@ class QuantumAutoencoder:
         Returns:
             Training circuit
         """
-        return self.circuit.copy() 
+        return self.circuit.copy()
+    
+    def compress_entry(self, features: np.ndarray, parameters: np.ndarray = None) -> Statevector:
+        """
+        Compress a single data entry using the trained autoencoder.
+        
+        Args:
+            features: Input features to compress
+            parameters: Optional parameters for the encoder circuit
+            
+        Returns:
+            Compressed quantum state
+        """
+        # Normalize input features
+        norm = np.linalg.norm(features)
+        if norm > 0:
+            features = features / norm
+            
+        # Create input circuit
+        qc = QuantumCircuit(self.n_qubits)
+        qc.initialize(features, range(self.n_qubits))
+        
+        # Apply encoder with parameters if provided
+        if parameters is not None:
+            params_u = parameters[:len(self.encoder_u.parameters)]
+            qc.compose(self.encoder_u.assign_parameters(params_u), inplace=True)
+            
+        # Get statevector of latent space
+        sv = Statevector.from_instruction(qc)
+        latent_data = sv.data[:2**self.n_latent]
+        
+        # Normalize latent state
+        latent_norm = np.linalg.norm(latent_data)
+        if latent_norm > 0:
+            latent_data = latent_data / latent_norm
+            
+        return Statevector(latent_data)
+        
+    def decode_features(self, latent_state: Statevector, parameters: np.ndarray = None) -> np.ndarray:
+        """
+        Decode compressed features back to original space.
+        
+        Args:
+            latent_state: Compressed quantum state
+            parameters: Optional parameters for the decoder circuit
+            
+        Returns:
+            Decoded features
+        """
+        # Normalize latent state
+        latent_data = latent_state.data
+        norm = np.linalg.norm(latent_data)
+        if norm > 0:
+            latent_data = latent_data / norm
+            
+        # Create circuit with latent state
+        qc = QuantumCircuit(self.n_qubits)
+        qc.initialize(latent_data, range(self.n_latent))
+        
+        # Reset trash qubits to |0>
+        for i in range(self.n_latent, self.n_qubits):
+            qc.reset(i)
+            
+        # Apply decoder with parameters if provided
+        if parameters is not None:
+            params_v = parameters[len(self.encoder_u.parameters):]
+            qc.compose(self.encoder_v.assign_parameters(params_v).inverse(), inplace=True)
+            
+        # Get final state
+        sv = Statevector.from_instruction(qc)
+        return sv.data 

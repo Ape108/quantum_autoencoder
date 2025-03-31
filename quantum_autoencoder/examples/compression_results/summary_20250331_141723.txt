@@ -1,0 +1,59 @@
+Code Compression Analysis Summary
+================================
+
+Analysis Date: 2025-03-31 14:17:23
+Total Files Analyzed: 4
+Languages: Python, Java, JavaScript, C++
+
+Overall Statistics:
+Average Compression Ratio: 89.20%
+Average Reconstruction Error: 1.3901
+
+Best Compression:
+File: example.java
+Language: Java
+Compression Ratio: 94.26%
+Reconstruction Error: 1.3901
+
+Worst Compression:
+File: example.py
+Language: Python
+Compression Ratio: 81.79%
+Reconstruction Error: 1.3845
+
+Best Reconstruction:
+File: example.py
+Language: Python
+Reconstruction Error: 1.3845
+
+Worst Reconstruction:
+File: example.cpp
+Language: C++
+Reconstruction Error: 1.3935
+
+Detailed Results:
+----------------
+
+example.java (Java):
+Original Size: 2231 bytes
+Compressed Size: 128 bytes
+Compression Ratio: 94.26%
+Reconstruction Error: 1.3901
+
+example.cpp (C++):
+Original Size: 1825 bytes
+Compressed Size: 128 bytes
+Compression Ratio: 92.99%
+Reconstruction Error: 1.3935
+
+example.js (JavaScript):
+Original Size: 1046 bytes
+Compressed Size: 128 bytes
+Compression Ratio: 87.76%
+Reconstruction Error: 1.3923
+
+example.py (Python):
+Original Size: 703 bytes
+Compressed Size: 128 bytes
+Compression Ratio: 81.79%
+Reconstruction Error: 1.3845

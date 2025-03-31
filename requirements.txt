@@ -4,4 +4,5 @@ numpy>=1.21.0
 matplotlib>=3.4.0
 scipy>=1.7.0
 torch>=2.0.0  # Required for some quantum neural network features
-python-dotenv>=0.19.0  # For managing environment variables and API keys 
+python-dotenv>=0.19.0  # For managing environment variables and API keys
+networkx>=2.6.0 

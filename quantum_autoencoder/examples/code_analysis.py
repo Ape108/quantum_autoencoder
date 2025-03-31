@@ -84,29 +84,28 @@ class CodeCompressionAnalyzer:
             plt.savefig(save_path, bbox_inches='tight', dpi=300)
         plt.close()
     
-    def plot_error_distribution(self, save_path: str = None):
-        """Plot reconstruction error distribution."""
-        plt.figure(figsize=(12, 6))
+    def plot_error_distribution(self, output_path: str) -> None:
+        """Plot violin plot of reconstruction error distribution by language."""
+        plt.figure(figsize=(10, 6))
         
-        # Group errors by language
-        language_errors = {}
-        for metric in self.metrics:
-            if metric.language not in language_errors:
-                language_errors[metric.language] = []
-            language_errors[metric.language].append(metric.reconstruction_error)
+        # Group data by language
+        languages = sorted(set(m.language for m in self.metrics))
+        data = []
+        for lang in languages:
+            errors = [m.reconstruction_error for m in self.metrics if m.language == lang]
+            data.append(errors)
         
         # Create violin plot
-        data = [errors for errors in language_errors.values()]
-        labels = list(language_errors.keys())
+        positions = range(1, len(languages) + 1)
+        plt.violinplot(data, positions=positions)
+        plt.xticks(positions, languages)
         
-        plt.violinplot(data, labels=labels)
         plt.title('Reconstruction Error Distribution by Language')
+        plt.xlabel('Programming Language')
         plt.ylabel('Reconstruction Error')
-        plt.xticks(rotation=45)
-        plt.grid(True, alpha=0.3)
+        plt.grid(True)
         
-        if save_path:
-            plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        plt.savefig(output_path)
         plt.close()
     
     def plot_size_comparison(self, save_path: str = None):
