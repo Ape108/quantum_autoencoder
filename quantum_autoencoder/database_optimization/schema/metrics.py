@@ -1,16 +1,16 @@
 """
-Schema performance metrics calculation.
+Schema metrics calculation.
 
-This module provides functionality for calculating various performance metrics
-for database schemas, including query patterns, join complexity, and storage efficiency.
+This module provides functionality for calculating various metrics
+about database schemas to evaluate their quality and performance.
 """
 
-import numpy as np
-from typing import Dict, List, Optional
-from .graph import SchemaGraph, NodeProperties, EdgeProperties
+from typing import Dict
+import networkx as nx
+from .graph import SchemaGraph
 
 class SchemaMetrics:
-    """Calculator for database schema performance metrics."""
+    """Calculates metrics for database schemas."""
     
     def __init__(self, graph: SchemaGraph):
         """
@@ -23,145 +23,135 @@ class SchemaMetrics:
         
     def calculate_query_metrics(self) -> Dict[str, float]:
         """
-        Calculate metrics related to query patterns.
+        Calculate query-related metrics.
         
         Returns:
-            Dictionary of query-related metrics
+            Dictionary of metrics
         """
         metrics = {}
         
-        # Average query frequency across tables
-        query_freqs = [
-            props.query_frequency
-            for props in self.graph.graph.nodes.values()
-        ]
-        metrics['avg_query_frequency'] = np.mean(query_freqs)
+        # Calculate average query frequency
+        total_freq = 0
+        for _, props in self.graph.graph.nodes(data=True):
+            total_freq += props['query_frequency']
+        metrics['avg_query_frequency'] = total_freq / len(self.graph.graph.nodes)
         
-        # Average update frequency
-        update_freqs = [
-            props.update_frequency
-            for props in self.graph.graph.nodes.values()
-        ]
-        metrics['avg_update_frequency'] = np.mean(update_freqs)
+        # Calculate query frequency variance
+        var_freq = 0
+        for _, props in self.graph.graph.nodes(data=True):
+            var_freq += (props['query_frequency'] - metrics['avg_query_frequency']) ** 2
+        metrics['query_frequency_variance'] = var_freq / len(self.graph.graph.nodes)
         
-        # Average join frequency
-        join_freqs = [
-            props['query_frequency']
-            for props in self.graph.graph.edges.values()
-        ]
-        metrics['avg_join_frequency'] = np.mean(join_freqs)
-        
-        # Average join selectivity
-        selectivities = [
-            props['selectivity']
-            for props in self.graph.graph.edges.values()
-        ]
-        metrics['avg_join_selectivity'] = np.mean(selectivities)
+        # Calculate relationship query metrics
+        total_rel_freq = 0
+        for edge in self.graph.graph.edges(data=True):
+            _, _, props = edge
+            total_rel_freq += props['query_frequency']
+        metrics['avg_relationship_frequency'] = total_rel_freq / len(self.graph.graph.edges)
         
         return metrics
         
     def calculate_storage_metrics(self) -> Dict[str, float]:
         """
-        Calculate metrics related to storage efficiency.
+        Calculate storage-related metrics.
         
         Returns:
-            Dictionary of storage-related metrics
+            Dictionary of metrics
         """
         metrics = {}
         
-        # Total size across all tables
-        total_size = sum(
-            props.size
-            for props in self.graph.graph.nodes.values()
-        )
+        # Calculate total size
+        total_size = 0
+        for _, props in self.graph.graph.nodes(data=True):
+            total_size += props['size']
         metrics['total_size'] = total_size
         
-        # Average table size
-        table_sizes = [
-            props.size
-            for props in self.graph.graph.nodes.values()
-        ]
-        metrics['avg_table_size'] = np.mean(table_sizes)
+        # Calculate average table size
+        metrics['avg_table_size'] = total_size / len(self.graph.graph.nodes)
         
-        # Average columns per table
-        column_counts = [
-            props.column_count
-            for props in self.graph.graph.nodes.values()
-        ]
-        metrics['avg_columns'] = np.mean(column_counts)
+        # Calculate size variance
+        var_size = 0
+        for _, props in self.graph.graph.nodes(data=True):
+            var_size += (props['size'] - metrics['avg_table_size']) ** 2
+        metrics['size_variance'] = var_size / len(self.graph.graph.nodes)
+        
+        # Calculate average column count
+        total_cols = 0
+        for _, props in self.graph.graph.nodes(data=True):
+            total_cols += props['column_count']
+        metrics['avg_column_count'] = total_cols / len(self.graph.graph.nodes)
         
         return metrics
         
-    def calculate_complexity_metrics(self) -> Dict[str, float]:
+    def calculate_relationship_metrics(self) -> Dict[str, float]:
         """
-        Calculate metrics related to schema complexity.
+        Calculate relationship-related metrics.
         
         Returns:
-            Dictionary of complexity-related metrics
+            Dictionary of metrics
         """
         metrics = {}
         
-        # Graph density
-        metrics['density'] = nx.density(self.graph.graph)
+        # Calculate average selectivity
+        total_sel = 0
+        for edge in self.graph.graph.edges(data=True):
+            _, _, props = edge
+            total_sel += props['selectivity']
+        metrics['avg_selectivity'] = total_sel / len(self.graph.graph.edges)
         
-        # Average node degree
-        degrees = [d for n, d in self.graph.graph.degree()]
-        metrics['avg_degree'] = np.mean(degrees)
+        # Calculate selectivity variance
+        var_sel = 0
+        for edge in self.graph.graph.edges(data=True):
+            _, _, props = edge
+            var_sel += (props['selectivity'] - metrics['avg_selectivity']) ** 2
+        metrics['selectivity_variance'] = var_sel / len(self.graph.graph.edges)
         
-        # Average path length (if graph is connected)
-        if nx.is_strongly_connected(self.graph.graph):
-            metrics['avg_path_length'] = nx.average_shortest_path_length(self.graph.graph)
-        else:
-            metrics['avg_path_length'] = float('inf')
-            
-        # Clustering coefficient
+        # Calculate relationship density
+        n = len(self.graph.graph.nodes)
+        m = len(self.graph.graph.edges)
+        metrics['relationship_density'] = m / (n * (n - 1)) if n > 1 else 0
+        
+        return metrics
+        
+    def calculate_structural_metrics(self) -> Dict[str, float]:
+        """
+        Calculate structural metrics.
+        
+        Returns:
+            Dictionary of metrics
+        """
+        metrics = {}
+        
+        # Calculate average degree
+        total_degree = 0
+        for node in self.graph.graph.nodes:
+            total_degree += self.graph.graph.degree(node)
+        metrics['avg_degree'] = total_degree / len(self.graph.graph.nodes)
+        
+        # Calculate clustering coefficient
         metrics['clustering_coefficient'] = nx.average_clustering(self.graph.graph)
         
-        return metrics
-        
-    def calculate_join_complexity(self) -> Dict[str, float]:
-        """
-        Calculate metrics related to join complexity.
-        
-        Returns:
-            Dictionary of join complexity metrics
-        """
-        metrics = {}
-        
-        # Average number of joins per query path
-        paths = []
-        for source in self.graph.graph.nodes():
-            for target in self.graph.graph.nodes():
-                if source != target:
-                    try:
-                        path = nx.shortest_path(self.graph.graph, source, target)
-                        paths.append(len(path) - 1)  # Number of joins is path length - 1
-                    except nx.NetworkXNoPath:
-                        continue
-                        
-        if paths:
-            metrics['avg_joins_per_path'] = np.mean(paths)
-        else:
-            metrics['avg_joins_per_path'] = 0
-            
-        # Maximum number of joins in any path
-        if paths:
-            metrics['max_joins_in_path'] = max(paths)
-        else:
-            metrics['max_joins_in_path'] = 0
+        # Calculate average path length
+        try:
+            metrics['avg_path_length'] = nx.average_shortest_path_length(self.graph.graph)
+        except nx.NetworkXError:
+            metrics['avg_path_length'] = float('inf')
             
         return metrics
         
     def get_all_metrics(self) -> Dict[str, float]:
         """
-        Calculate all available metrics.
+        Get all available metrics.
         
         Returns:
-            Dictionary containing all metrics
+            Dictionary of all metrics
         """
         metrics = {}
+        
+        # Calculate all metric categories
         metrics.update(self.calculate_query_metrics())
         metrics.update(self.calculate_storage_metrics())
-        metrics.update(self.calculate_complexity_metrics())
-        metrics.update(self.calculate_join_complexity())
+        metrics.update(self.calculate_relationship_metrics())
+        metrics.update(self.calculate_structural_metrics())
+        
         return metrics 

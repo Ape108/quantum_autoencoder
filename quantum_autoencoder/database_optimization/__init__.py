@@ -1,25 +1,24 @@
 """
-Quantum Database Schema Optimizer
+Database schema optimization using quantum autoencoders.
 
-This package provides tools for optimizing database schemas using quantum autoencoders.
-It analyzes database structures, converts them to quantum states, and uses quantum
-optimization to suggest improvements for query performance, storage efficiency,
-and overall database design.
+This package provides functionality for optimizing database schemas using
+quantum computing techniques, specifically quantum autoencoders.
 """
 
-from .schema.analyzer import SchemaAnalyzer
-from .schema.graph import SchemaGraph
+from .schema.graph import SchemaGraph, NodeProperties, EdgeProperties
 from .schema.metrics import SchemaMetrics
+from .schema.analyzer import SchemaAnalyzer
+from .quantum.optimizer import QuantumSchemaOptimizer
 from .quantum.state import QuantumStateConverter
 from .quantum.circuit import QuantumCircuitBuilder
-from .quantum.optimizer import QuantumSchemaOptimizer
 
-__version__ = '0.1.0'
 __all__ = [
-    'SchemaAnalyzer',
     'SchemaGraph',
+    'NodeProperties',
+    'EdgeProperties',
     'SchemaMetrics',
+    'SchemaAnalyzer',
+    'QuantumSchemaOptimizer',
     'QuantumStateConverter',
-    'QuantumCircuitBuilder',
-    'QuantumSchemaOptimizer'
+    'QuantumCircuitBuilder'
 ] 
