@@ -1,29 +1,18 @@
-# Quantum Autoencoder for Database Schema Optimization
+# Quantum Database Optimizer
 
-A quantum computing implementation that uses quantum autoencoders to optimize database schemas. This project demonstrates the application of quantum compression techniques to database optimization problems.
+A quantum computing-based tool for optimizing database structure and performance using quantum autoencoders.
 
-## Core Features
+## Overview
 
-- **Quantum Autoencoder**: Implementation of a quantum autoencoder using U-V architecture
-- **Database Schema Optimization**: Tools for analyzing and optimizing database schemas
-- **High-Fidelity Compression**: Achieves compression ratios up to 8:1 with >99% fidelity
+This project uses quantum autoencoders to analyze and optimize database structures. By encoding database features into quantum states and finding efficient latent representations, it can identify patterns and suggest optimizations for improved database performance.
 
-## Project Structure
+## Features
 
-```
-quantum_autoencoder/
-├── core/               # Core quantum autoencoder implementation
-├── database_optimization/  # Database optimization components
-└── examples/          # Usage examples and tests
-```
-
-## Requirements
-
-- Python 3.8+
-- Qiskit 1.0+
-- NumPy
-- SciPy
-- Matplotlib
+- Quantum feature extraction from database schemas and queries
+- Quantum autoencoder-based pattern detection
+- Database structure optimization
+- SQL export and analysis tools
+- Comprehensive results formatting and visualization
 
 ## Installation
 
@@ -31,39 +20,51 @@ quantum_autoencoder/
 pip install -r requirements.txt
 ```
 
-## Quick Start
+## Usage
 
-```python
-from quantum_autoencoder.core.circuit import QuantumAutoencoder
-from quantum_autoencoder.database_optimization.schema.graph import SchemaGraph
-
-# Initialize quantum autoencoder
-autoencoder = QuantumAutoencoder(
-    n_qubits=5,
-    n_latent=2,
-    reps=3,
-    options={
-        "optimization_level": 3,
-        "resilience_level": 1,
-        "shots": 1024
-    }
-)
-
-# See examples/quantum_schema_test.py for complete usage
-```
-
-## Example Results
-
-- 8:1 compression ratio with 0.9977 fidelity
-- 4:1 compression ratio with 0.9984 fidelity
-- 2:1 compression ratio with 0.9969 fidelity
-
-## Testing
+Basic usage:
 
 ```bash
-python -m pytest tests/
+python -m quantum_autoencoder.database_optimization.quantum.main <database_path> --output-dir results --n-qubits 4 --n-latent 2
+```
+
+This will:
+1. Analyze the input database
+2. Train a quantum autoencoder
+3. Generate optimized database
+4. Create detailed reports and visualizations
+
+## Results
+
+The optimization process generates:
+- Optimized SQLite database
+- SQL exports of original and optimized databases
+- Compression metrics and analysis
+- Human-readable summary report
+- Visualization of database structure and optimizations
+
+Results are organized in the following structure:
+```
+results/
+├── SUMMARY.md           # Human-readable summary
+├── metrics/            
+│   └── compression_metrics.json  # Detailed metrics
+├── sql/
+│   ├── original_schema.sql      # Original DB schema
+│   ├── original_data.sql        # Original DB data
+│   ├── optimized_schema.sql     # Optimized DB schema
+│   └── optimized_data.sql       # Optimized DB data
+└── optimized.db        # SQLite database file
+```
+
+## Example
+
+The `tests/database_optimization/ExampleDB` directory contains a sample Northwind database that can be used to test the optimization process:
+
+```bash
+python -m quantum_autoencoder.database_optimization.quantum.main tests/database_optimization/ExampleDB/northwind.db
 ```
 
 ## License
 
-MIT License - See LICENSE file for details 
+MIT License - see LICENSE file for details 

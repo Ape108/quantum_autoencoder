@@ -20,6 +20,7 @@ from qiskit import QuantumCircuit
 
 from quantum_autoencoder.database_optimization.quantum.training import QuantumTrainer
 from quantum_autoencoder.database_optimization.quantum.feature_extraction import QueryFeatureMapper
+from quantum_autoencoder.database_optimization.quantum.results_formatter import ResultsFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class QuantumDatabaseOptimizer:
         # Initialize components
         self.feature_mapper = QueryFeatureMapper(n_qubits=n_qubits)
         self.trainer = QuantumTrainer(n_qubits=n_qubits, n_latent=n_latent)
+        self.formatter = ResultsFormatter(output_dir=output_dir)
         
     def optimize_database(self, db_path: str) -> str:
         """
@@ -73,6 +75,21 @@ class QuantumDatabaseOptimizer:
         # Save compressed database
         output_path = self.output_dir / "optimized.db"
         self._save_optimized_db(db_path, output_path, compressed_states)
+        
+        # Format and save results
+        compression_metrics = {
+            'n_qubits': self.n_qubits,
+            'n_latent': self.n_latent,
+            'compression_ratio': self.n_qubits / self.n_latent,
+            'final_loss': history[-1],
+            'training_history': history
+        }
+        
+        self.formatter.format_results(
+            original_db=db_path,
+            optimized_db=str(output_path),
+            compression_metrics=compression_metrics
+        )
         
         return str(output_path)
         

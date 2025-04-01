@@ -1,7 +1,6 @@
-qiskit>=1.0.0
-qiskit-machine-learning>=0.8.2
-numpy>=1.21.0
-matplotlib>=3.4.0
+numpy>=1.20.0
 scipy>=1.7.0
-networkx>=2.6.0  # For schema graph operations
-pytest>=7.0.0    # For testing 
+qiskit>=1.0.0
+matplotlib>=3.4.0
+tabulate>=0.8.0
+networkx>=2.6.0  # For database schema analysis 
