@@ -183,16 +183,31 @@ This implementation builds upon and extends several key works:
 2. **Reference Implementations**:
    - Original circuit design by [@qiaoyi213](https://github.com/qiaoyi213) - see `references/Main Algorithm Quantum Circuit Autoencoder.py`
    - Base quantum circuit implementation - see `references/qc.py`
+   - Detailed technical documentation - see `docs/references/TECHNICAL.md`
+   - Experimental results and analysis - see `docs/references/experiments.md`
+   - Credits and acknowledgments - see `docs/references/CREDITS.md`
 
 3. **Technical Resources**:
    - [Qiskit Documentation](https://qiskit.org/documentation/)
    - [Qiskit V2 Primitives Guide](https://docs.quantum.ibm.com/api/migration-guides/v2-primitives)
 
-The reference implementations have been substantially modified and enhanced in this project to:
+The reference implementations and documentation have been substantially modified and enhanced in this project to:
 - Implement V2 primitives for better hardware compatibility
 - Add comprehensive error mitigation
 - Improve training convergence
 - Enhance visualization capabilities
+- Streamline the codebase for the domain wall example
+
+## Documentation Structure
+
+```
+docs/
+└── references/
+    ├── TECHNICAL.md     # Original technical implementation details
+    ├── experiments.md   # Original experimental results
+    ├── CREDITS.md      # Original credits and acknowledgments
+    └── images/         # Original architecture diagrams and figures
+```
 
 ## License
 
