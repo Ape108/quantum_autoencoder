@@ -235,4 +235,280 @@ class QuantumSchemaOptimizer:
         Returns:
             List of optimization history entries
         """
-        return self.training_history.copy() 
+        return self.training_history.copy()
+
+class DatabaseOptimizer:
+    """Applies quantum-derived optimization strategies to database."""
+    
+    def __init__(self, db_path: str, output_path: Optional[str] = None):
+        """
+        Initialize optimizer.
+        
+        Args:
+            db_path: Path to source database
+            output_path: Path for optimized database (if None, modifies in place)
+        """
+        self.source_path = db_path
+        self.output_path = output_path or db_path
+        self.conn = None
+        self.cursor = None
+        self.table_info = {}
+        self.applied_strategies = []
+        
+    def connect(self):
+        """Establish database connection."""
+        if self.output_path != self.source_path:
+            # Create new database for optimization
+            import shutil
+            shutil.copy2(self.source_path, self.output_path)
+        
+        self.conn = sqlite3.connect(self.output_path)
+        self.cursor = self.conn.cursor()
+        
+        # Enable foreign keys
+        self.cursor.execute("PRAGMA foreign_keys = ON")
+        
+    def analyze_database(self):
+        """Gather database structure information."""
+        # Get all tables
+        self.cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name NOT LIKE 'sqlite_%'
+        """)
+        tables = [row[0] for row in self.cursor.fetchall()]
+        
+        for table in tables:
+            # Get columns
+            self.cursor.execute(f"PRAGMA table_info({table})")
+            columns = [
+                {
+                    'name': row[1],
+                    'type': row[2],
+                    'notnull': row[3],
+                    'pk': row[5]
+                }
+                for row in self.cursor.fetchall()
+            ]
+            
+            # Get indexes
+            self.cursor.execute(f"PRAGMA index_list({table})")
+            indexes = [
+                {
+                    'name': row[1],
+                    'unique': row[2]
+                }
+                for row in self.cursor.fetchall()
+            ]
+            
+            # Get foreign keys
+            self.cursor.execute(f"PRAGMA foreign_key_list({table})")
+            foreign_keys = [
+                {
+                    'from': row[3],
+                    'to_table': row[2],
+                    'to_col': row[4]
+                }
+                for row in self.cursor.fetchall()
+            ]
+            
+            self.table_info[table] = {
+                'columns': columns,
+                'indexes': indexes,
+                'foreign_keys': foreign_keys
+            }
+    
+    def apply_optimization_strategies(self, strategies: List[Dict]):
+        """
+        Apply quantum-derived optimization strategies.
+        
+        Args:
+            strategies: List of optimization strategies from latent space analysis
+        """
+        for strategy in strategies:
+            try:
+                if strategy['type'] == 'index_strategy':
+                    self._apply_index_strategy(strategy)
+                elif strategy['type'] == 'access_strategy':
+                    self._apply_access_strategy(strategy)
+                elif strategy['type'] == 'partition_strategy':
+                    self._apply_partition_strategy(strategy)
+                
+                self.applied_strategies.append({
+                    'strategy': strategy,
+                    'status': 'success'
+                })
+                
+            except Exception as e:
+                logger.error(f"Failed to apply strategy: {strategy}")
+                logger.error(f"Error: {str(e)}")
+                self.applied_strategies.append({
+                    'strategy': strategy,
+                    'status': 'failed',
+                    'error': str(e)
+                })
+    
+    def _apply_index_strategy(self, strategy: Dict):
+        """Apply index-related optimization strategy."""
+        if strategy['action'] == 'create_compound_index':
+            # Map qubit positions to actual columns
+            table_name = self._get_table_for_columns(strategy['columns'])
+            if not table_name:
+                raise ValueError("Could not determine table for index creation")
+            
+            columns = self._map_qubits_to_columns(table_name, strategy['columns'])
+            idx_name = f"idx_quantum_{table_name}_{'_'.join(columns)}"
+            
+            # Create the index
+            column_list = ', '.join(columns)
+            self.cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS {idx_name}
+                ON {table_name}({column_list})
+            """)
+            
+            logger.info(f"Created compound index {idx_name} on {table_name}({column_list})")
+    
+    def _apply_access_strategy(self, strategy: Dict):
+        """Apply access path optimization strategy."""
+        if strategy['action'] == 'optimize_path':
+            # Create an optimized view for the access pattern
+            path_state = strategy['path']
+            table_name = self._get_table_for_path(path_state)
+            if not table_name:
+                raise ValueError("Could not determine table for path optimization")
+            
+            # Create optimized view based on interference pattern
+            view_name = f"v_quantum_opt_{table_name}"
+            order_columns = self._get_ordering_from_path(table_name, path_state)
+            
+            self.cursor.execute(f"""
+                CREATE VIEW IF NOT EXISTS {view_name} AS
+                SELECT * FROM {table_name}
+                ORDER BY {order_columns}
+            """)
+            
+            logger.info(f"Created optimized view {view_name} for {table_name}")
+    
+    def _apply_partition_strategy(self, strategy: Dict):
+        """Apply partitioning strategy."""
+        if strategy['action'] == 'create_partition':
+            table_name = self._get_table_for_qubit(strategy['column'])
+            if not table_name:
+                raise ValueError("Could not determine table for partitioning")
+            
+            column = self._map_qubit_to_column(table_name, strategy['column'])
+            
+            # Create partitioned views
+            self._create_partition_views(table_name, column)
+            
+            logger.info(f"Created partition scheme for {table_name} on {column}")
+    
+    def _get_table_for_columns(self, qubit_positions: tuple) -> Optional[str]:
+        """Map qubit positions to most likely table based on schema analysis."""
+        # This is a simplified version - in practice, would need more sophisticated mapping
+        for table, info in self.table_info.items():
+            if len(info['columns']) >= max(qubit_positions) + 1:
+                return table
+        return None
+    
+    def _map_qubits_to_columns(self, table: str, qubit_positions: tuple) -> List[str]:
+        """Map qubit positions to actual column names."""
+        columns = self.table_info[table]['columns']
+        return [columns[pos]['name'] for pos in qubit_positions if pos < len(columns)]
+    
+    def _get_table_for_path(self, path_state: str) -> Optional[str]:
+        """Determine relevant table for a quantum path state."""
+        # Simple heuristic - match path length with table size
+        path_length = len(path_state)
+        for table, info in self.table_info.items():
+            if len(info['columns']) == path_length:
+                return table
+        return None
+    
+    def _get_ordering_from_path(self, table: str, path_state: str) -> str:
+        """Convert quantum path state to SQL ordering clause."""
+        columns = self._map_qubits_to_columns(table, range(len(path_state)))
+        # Use path state bits to determine ascending/descending
+        orders = []
+        for i, (col, bit) in enumerate(zip(columns, path_state)):
+            direction = "DESC" if bit == '1' else "ASC"
+            orders.append(f"{col} {direction}")
+        return ', '.join(orders)
+    
+    def _create_partition_views(self, table: str, column: str):
+        """Create partitioned views based on column values."""
+        # Get distinct values
+        self.cursor.execute(f"SELECT DISTINCT {column} FROM {table}")
+        values = [row[0] for row in self.cursor.fetchall()]
+        
+        # Create view for each partition
+        for value in values:
+            view_name = f"v_quantum_part_{table}_{column}_{value}"
+            self.cursor.execute(f"""
+                CREATE VIEW IF NOT EXISTS {view_name} AS
+                SELECT * FROM {table}
+                WHERE {column} = ?
+            """, (value,))
+    
+    def _map_qubit_to_column(self, table: str, qubit: int) -> str:
+        """Map a qubit position to a column name."""
+        columns = self.table_info[table]['columns']
+        if qubit < len(columns):
+            return columns[qubit]['name']
+        raise ValueError(f"Qubit position {qubit} exceeds columns in table {table}")
+    
+    def save_optimization_report(self, output_file: str):
+        """Save report of applied optimizations."""
+        report = {
+            'database': self.output_path,
+            'original_schema': self.table_info,
+            'applied_strategies': self.applied_strategies
+        }
+        
+        with open(output_file, 'w') as f:
+            json.dump(report, f, indent=2)
+    
+    def close(self):
+        """Close database connection."""
+        if self.conn:
+            self.conn.commit()
+            self.conn.close()
+            self.conn = None
+            self.cursor = None
+
+def optimize_database(
+    db_path: str,
+    optimization_strategies: List[Dict],
+    output_path: Optional[str] = None,
+    report_path: Optional[str] = None
+) -> str:
+    """
+    Apply quantum-derived optimization strategies to database.
+    
+    Args:
+        db_path: Path to source database
+        optimization_strategies: List of strategies from latent space analysis
+        output_path: Optional path for optimized database
+        report_path: Optional path for optimization report
+        
+    Returns:
+        Path to optimized database
+    """
+    # Initialize optimizer
+    optimizer = DatabaseOptimizer(db_path, output_path)
+    
+    try:
+        # Connect and analyze
+        optimizer.connect()
+        optimizer.analyze_database()
+        
+        # Apply optimizations
+        optimizer.apply_optimization_strategies(optimization_strategies)
+        
+        # Save report if requested
+        if report_path:
+            optimizer.save_optimization_report(report_path)
+        
+        return optimizer.output_path
+        
+    finally:
+        optimizer.close() 

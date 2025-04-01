@@ -1,20 +1,7 @@
 """
-Schema analysis package.
-
-This package provides functionality for analyzing and optimizing
-database schemas using graph theory and quantum computing.
+Schema optimization package initialization.
 """
 
-from .graph import SchemaGraph, NodeProperties, EdgeProperties
-from .analyzer import SchemaAnalyzer
-from .metrics import OptimizationMetrics
-from .validation import SchemaValidator
+from .metrics import SchemaMetrics
 
-__all__ = [
-    'SchemaGraph',
-    'NodeProperties',
-    'EdgeProperties',
-    'SchemaAnalyzer',
-    'OptimizationMetrics',
-    'SchemaValidator'
-] 
+__all__ = ['SchemaMetrics'] 

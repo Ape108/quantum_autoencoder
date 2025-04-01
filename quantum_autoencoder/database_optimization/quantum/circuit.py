@@ -10,6 +10,7 @@ import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.circuit import Parameter
 from qiskit.circuit.library import TwoLocal
+import pennylane as qml
 
 class QuantumCircuitBuilder:
     """Builds quantum circuits for schema optimization."""
@@ -25,6 +26,7 @@ class QuantumCircuitBuilder:
         self.n_qubits = n_qubits
         self.n_latent = n_latent
         self.n_trash = n_qubits - n_latent
+        self.dev = qml.device("default.qubit", wires=n_qubits)
         
         # Create quantum registers
         self.qr_input = QuantumRegister(n_qubits, 'input')
@@ -35,6 +37,36 @@ class QuantumCircuitBuilder:
         
         # Create classical register for measurement
         self.cr = ClassicalRegister(1, 'meas')
+        
+    def build_circuit(self):
+        """Build a minimal quantum autoencoder circuit."""
+        circuit = QuantumCircuit(self.n_qubits)
+        
+        # Add minimal parameterized gates
+        params = []
+        for i in range(self.n_qubits):
+            param = Parameter(f"θ_{i}")
+            circuit.ry(param, i)
+            params.append(param)
+            
+        # Add single layer of entanglement
+        for i in range(self.n_qubits - 1):
+            circuit.cx(i, i + 1)
+            
+        return circuit, len(params)
+        
+    def get_expectation_values(self, circuit, parameters):
+        """Get expectation values for latent qubits."""
+        @qml.qnode(self.dev)
+        def expectation(params):
+            # Convert circuit to PennyLane
+            for i, param in enumerate(params):
+                qml.RY(param, wires=i)
+            for i in range(self.n_qubits - 1):
+                qml.CNOT(wires=[i, i + 1])
+            return [qml.expval(qml.PauliZ(i)) for i in range(self.n_latent)]
+            
+        return expectation(parameters)
         
     def build_encoder(self) -> QuantumCircuit:
         """
@@ -180,4 +212,34 @@ class QuantumCircuitBuilder:
         circuit = self.build_full_circuit()
         
         # Return number of parameters
-        return len(circuit.parameters) 
+        return len(circuit.parameters)
+
+def create_quantum_circuit(n_qubits, n_latent):
+    """Creates a simplified quantum autoencoder circuit."""
+    dev = qml.device("default.qubit", wires=n_qubits, shots=None)
+    
+    @qml.qnode(dev, interface="autograd", diff_method="parameter-shift")
+    def circuit(inputs, params):
+        # Encode input state
+        qml.QubitStateVector(inputs, wires=range(n_qubits))
+        
+        # Simple parameterized circuit - one layer only
+        for i in range(n_qubits):
+            qml.RY(params[i], wires=i)
+        
+        # Single entangling layer
+        for i in range(n_qubits-1):
+            qml.CNOT(wires=[i, i+1])
+            
+        # Measure only latent qubits
+        return [qml.expval(qml.PauliZ(i)) for i in range(n_latent)]
+    
+    return circuit
+
+def batch_process_circuits(circuits, inputs, batch_size=4):
+    """Process quantum circuits in batches for better performance."""
+    results = []
+    for i in range(0, len(inputs), batch_size):
+        batch = inputs[i:i + batch_size]
+        results.extend([circuit(input_state) for input_state in batch])
+    return np.array(results) 

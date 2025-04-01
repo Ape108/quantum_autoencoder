@@ -10,6 +10,7 @@ from typing import Dict, List, Tuple
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 from .graph import SchemaGraph
+import sqlite3
 
 class OptimizationMetrics:
     """Calculate optimization metrics for database schemas."""
@@ -168,4 +169,226 @@ class OptimizationMetrics:
             if key != 'total'
         )
         
-        return scores 
+        return scores
+
+class SchemaMetrics:
+    """Analyzes and provides metrics for database schema."""
+    
+    def __init__(self, conn: sqlite3.Connection):
+        """
+        Initialize metrics analyzer.
+        
+        Args:
+            conn: Database connection
+        """
+        self.conn = conn
+        self.cursor = conn.cursor()
+        
+    def get_table_metrics(self, table_name: str) -> Dict:
+        """Get metrics for a specific table."""
+        metrics = {
+            'row_count': 0,
+            'column_count': 0,
+            'index_count': 0,
+            'foreign_keys': [],
+            'data_distribution': {}
+        }
+        
+        # Get row count
+        self.cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        metrics['row_count'] = self.cursor.fetchone()[0]
+        
+        # Get column info
+        self.cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = self.cursor.fetchall()
+        metrics['column_count'] = len(columns)
+        
+        # Get index info
+        self.cursor.execute(f"PRAGMA index_list({table_name})")
+        indexes = self.cursor.fetchall()
+        metrics['index_count'] = len(indexes)
+        
+        # Get foreign keys
+        self.cursor.execute(f"PRAGMA foreign_key_list({table_name})")
+        foreign_keys = self.cursor.fetchall()
+        metrics['foreign_keys'] = [
+            {
+                'from': fk[3],
+                'to_table': fk[2],
+                'to_column': fk[4]
+            }
+            for fk in foreign_keys
+        ]
+        
+        # Analyze data distribution for each column
+        for col in columns:
+            col_name = col[1]
+            self.cursor.execute(f"""
+                SELECT {col_name}, COUNT(*) as freq 
+                FROM {table_name} 
+                GROUP BY {col_name}
+            """)
+            distribution = self.cursor.fetchall()
+            metrics['data_distribution'][col_name] = {
+                'unique_values': len(distribution),
+                'max_frequency': max(freq[1] for freq in distribution) if distribution else 0,
+                'null_count': sum(1 for freq in distribution if freq[0] is None)
+            }
+        
+        return metrics
+    
+    def get_join_metrics(self, table1: str, table2: str) -> Dict:
+        """Analyze join characteristics between two tables."""
+        metrics = {
+            'join_size': 0,
+            'cardinality_ratio': 0.0,
+            'foreign_key_coverage': 0.0
+        }
+        
+        # Find foreign key relationship
+        self.cursor.execute(f"PRAGMA foreign_key_list({table1})")
+        foreign_keys = [
+            fk for fk in self.cursor.fetchall()
+            if fk[2] == table2  # fk[2] is referenced table
+        ]
+        
+        if foreign_keys:
+            fk = foreign_keys[0]
+            from_col = fk[3]  # fk[3] is from column
+            to_col = fk[4]    # fk[4] is to column
+            
+            # Get join size
+            self.cursor.execute(f"""
+                SELECT COUNT(*)
+                FROM {table1} t1
+                JOIN {table2} t2
+                ON t1.{from_col} = t2.{to_col}
+            """)
+            metrics['join_size'] = self.cursor.fetchone()[0]
+            
+            # Get table sizes
+            self.cursor.execute(f"SELECT COUNT(*) FROM {table1}")
+            size1 = self.cursor.fetchone()[0]
+            self.cursor.execute(f"SELECT COUNT(*) FROM {table2}")
+            size2 = self.cursor.fetchone()[0]
+            
+            # Calculate cardinality ratio
+            if size2 > 0:
+                metrics['cardinality_ratio'] = size1 / size2
+            
+            # Calculate foreign key coverage
+            self.cursor.execute(f"""
+                SELECT COUNT(DISTINCT {from_col})
+                FROM {table1}
+            """)
+            distinct_fk = self.cursor.fetchone()[0]
+            
+            self.cursor.execute(f"""
+                SELECT COUNT(DISTINCT {to_col})
+                FROM {table2}
+            """)
+            distinct_pk = self.cursor.fetchone()[0]
+            
+            if distinct_pk > 0:
+                metrics['foreign_key_coverage'] = distinct_fk / distinct_pk
+        
+        return metrics
+    
+    def get_query_metrics(self, query: str) -> Dict:
+        """Analyze query execution characteristics."""
+        metrics = {
+            'execution_plan': [],
+            'estimated_cost': 0,
+            'tables_accessed': [],
+            'indexes_used': []
+        }
+        
+        # Get query plan
+        self.cursor.execute(f"EXPLAIN QUERY PLAN {query}")
+        plan = self.cursor.fetchall()
+        
+        # Parse plan
+        for step in plan:
+            detail = step[3]  # step[3] contains the operation details
+            metrics['execution_plan'].append({
+                'id': step[0],
+                'parent': step[1],
+                'operation': detail
+            })
+            
+            # Extract cost estimate
+            if 'SCAN' in detail:
+                metrics['estimated_cost'] += step[2]  # step[2] is estimated rows
+            
+            # Extract accessed tables
+            for word in detail.split():
+                if word not in ['SCAN', 'SEARCH', 'JOIN', 'USING', 'INDEX']:
+                    metrics['tables_accessed'].append(word)
+            
+            # Extract used indexes
+            if 'INDEX' in detail:
+                idx = detail.split('INDEX')[-1].strip()
+                metrics['indexes_used'].append(idx)
+        
+        return metrics
+    
+    def get_overall_metrics(self) -> Dict:
+        """Get overall database metrics."""
+        metrics = {
+            'tables': {},
+            'relationships': {},
+            'complexity': {
+                'total_tables': 0,
+                'total_columns': 0,
+                'total_indexes': 0,
+                'total_foreign_keys': 0,
+                'max_join_depth': 0
+            }
+        }
+        
+        # Get all tables
+        self.cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name NOT LIKE 'sqlite_%'
+        """)
+        tables = [row[0] for row in self.cursor.fetchall()]
+        
+        # Analyze each table
+        for table in tables:
+            metrics['tables'][table] = self.get_table_metrics(table)
+            
+            # Update complexity metrics
+            metrics['complexity']['total_tables'] += 1
+            metrics['complexity']['total_columns'] += metrics['tables'][table]['column_count']
+            metrics['complexity']['total_indexes'] += metrics['tables'][table]['index_count']
+            metrics['complexity']['total_foreign_keys'] += len(metrics['tables'][table]['foreign_keys'])
+        
+        # Analyze relationships between tables
+        for table1 in tables:
+            for table2 in tables:
+                if table1 != table2:
+                    join_metrics = self.get_join_metrics(table1, table2)
+                    if join_metrics['join_size'] > 0:
+                        metrics['relationships'][f"{table1}__{table2}"] = join_metrics
+        
+        # Calculate max join depth
+        def get_join_depth(table: str, visited: set) -> int:
+            if table in visited:
+                return 0
+            visited.add(table)
+            max_depth = 0
+            for rel in metrics['relationships']:
+                if table in rel:
+                    other = rel.replace(table, '').replace('__', '')
+                    depth = get_join_depth(other, visited.copy())
+                    max_depth = max(max_depth, depth + 1)
+            return max_depth
+        
+        for table in tables:
+            depth = get_join_depth(table, set())
+            metrics['complexity']['max_join_depth'] = max(
+                metrics['complexity']['max_join_depth'],
+                depth
+            )
+        
+        return metrics 
