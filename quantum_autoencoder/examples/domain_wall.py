@@ -9,9 +9,8 @@ from typing import Optional, Dict, Any
 import numpy as np
 import matplotlib.pyplot as plt
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import Statevector, DensityMatrix
-from qiskit.visualization import plot_state_city
-from qiskit_algorithms.optimizers import COBYLA, SPSA
+from qiskit.quantum_info import Statevector
+from qiskit_algorithms.optimizers import SPSA
 
 from quantum_autoencoder.core.circuit import QuantumAutoencoder
 from quantum_autoencoder.core.training import train_autoencoder
@@ -32,23 +31,22 @@ def create_domain_wall_state(n_qubits: int = 5) -> QuantumCircuit:
         qc.x(i)
     return qc
 
-def visualize_state(state_vector: np.ndarray, title: str, filename: str):
+def visualize_state(state_vector: Statevector, title: str, filename: str):
     """
-    Visualize a quantum state using city plot with improved readability.
+    Visualize a quantum state using a bar plot.
     
     Args:
         state_vector: State vector to visualize
         title: Title for the plot
         filename: Filename to save the plot
     """
-    # Create figure with larger size
-    plt.figure(figsize=(12, 8))
-    
-    # Create city plot with customized style
-    fig = plot_state_city(state_vector, title=title)
-    
-    # Save with high DPI for better quality
-    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    fig = plt.figure(figsize=(10, 6))
+    probabilities = np.abs(state_vector.data) ** 2
+    plt.bar(range(len(probabilities)), probabilities)
+    plt.title(title)
+    plt.xlabel('Basis State')
+    plt.ylabel('Probability')
+    plt.savefig(filename)
     plt.close()
 
 def normalize_state(state_vector):

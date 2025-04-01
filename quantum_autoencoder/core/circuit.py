@@ -8,8 +8,8 @@ import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.circuit import Parameter
 from qiskit.quantum_info import Statevector
-from qiskit.primitives import Sampler
-from qiskit.primitives import Estimator
+from qiskit.primitives import SamplerV2 as Sampler
+from qiskit.primitives import EstimatorV2 as Estimator
 
 class QuantumAutoencoder:
     """
@@ -67,7 +67,7 @@ class QuantumAutoencoder:
         """Create an encoder circuit with unique parameter names."""
         qc = QuantumCircuit(self.n_qubits, name=f'encoder_{name}')
         
-        # Calculate number of parameters (reduced from original)
+        # Calculate number of parameters
         n_layers = self.reps
         n_qubits = self.n_qubits
         
