@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from qiskit import QuantumCircuit
-from qiskit.primitives import SamplerV2 as Sampler
+from qiskit.primitives import Sampler
 from qiskit_algorithms.optimizers import Optimizer, COBYLA, SPSA
 from qiskit_machine_learning.utils import algorithm_globals
 from qiskit.quantum_info import Statevector

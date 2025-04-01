@@ -8,8 +8,8 @@ import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit.circuit import Parameter
 from qiskit.quantum_info import Statevector
-from qiskit.primitives import SamplerV2 as Sampler
-from qiskit.primitives import EstimatorV2 as Estimator
+from qiskit.primitives import Sampler
+from qiskit.primitives import Estimator
 
 class QuantumAutoencoder:
     """

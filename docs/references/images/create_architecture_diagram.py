@@ -3,6 +3,7 @@
 import numpy as np
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 import matplotlib.pyplot as plt
+import os
 
 def create_architecture_diagram():
     # Create registers
@@ -38,7 +39,11 @@ def create_architecture_diagram():
                   initial_state=True)
     plt.title('Quantum Autoencoder Architecture\n(Simplified Example)')
     plt.tight_layout()
-    plt.savefig('docs/images/architecture.png', dpi=300, bbox_inches='tight')
+    
+    # Create output directory if it doesn't exist
+    os.makedirs('docs/references/images', exist_ok=True)
+    
+    plt.savefig('docs/references/images/architecture.png', dpi=300, bbox_inches='tight')
     plt.close()
 
 if __name__ == '__main__':
