@@ -1,0 +1,21 @@
+[0:00-0:15]
+Hello, I'm Cameron Akhtar from the University of Missouri-Kansas City. Today, I'll walk you through my implementation of a quantum autoencoder using IBM's Qiskit Runtime V2 primitives. This project explores the challenges of quantum data compression in the NISQ era.
+
+[0:15-0:35]
+Our goal was to compress a 5-qubit domain wall state |00111⟩ into a 3-qubit latent space. We used a U-V encoder architecture with the RealAmplitudes ansatz and implemented a SWAP test for fidelity measurement. In simulation, we achieved over 99% fidelity, demonstrating the theoretical validity of our approach.
+
+[0:35-1:00]
+However, the real breakthrough came when we implemented this on actual quantum hardware. We discovered that what works in simulation faces significant challenges in reality. The original circuit of about 50 gates expanded to nearly 900 gates after transpilation due to hardware connectivity constraints. This, combined with decoherence times and gate errors, led to a dramatic drop in performance.
+
+[1:00-1:25]
+We implemented several error mitigation strategies:
+- Dynamical decoupling to preserve quantum states
+- Increased shot count for better statistics
+- Resilience level 1 for error suppression
+These improvements helped raise the fidelity from 0.5% to 11%, but the gap between simulation and hardware remains significant.
+
+[1:25-1:45]
+This project highlights a crucial lesson in quantum computing: the need for hardware-aware algorithm design. Future work will focus on developing shallow circuit variants and exploring compression architectures better suited to NISQ devices.
+
+[1:45-2:00]
+Thank you for watching. This work was conducted under the guidance of Dr. Luke Miller, and demonstrates both the potential and current limitations of quantum autoencoders on real quantum hardware. 

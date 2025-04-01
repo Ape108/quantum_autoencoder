@@ -1,0 +1,27 @@
+Implementation Architecture:
+
+1. Circuit Design
+- 5-qubit input register for domain wall state |00111⟩
+- 3-qubit latent space for compressed representation
+- RealAmplitudes ansatz for encoder (U) and decoder (V)
+- SWAP test circuit for fidelity measurement
+
+2. Optimization Strategy
+- SPSA optimizer with 200 iterations
+- Learning rate: 0.15, Perturbation: 0.1
+- Cost function based on SWAP test fidelity
+- Parameter initialization in [0,1] range
+
+3. Error Mitigation
+- Dynamical decoupling (XpXm sequence)
+- Resilience level 1 enabled
+- 8192 shots per measurement
+- Optimized circuit transpilation
+
+autoencoder_circuit.png
+swap_test.png
+
+Hardware Configuration:
+- IBM Quantum Kyiv backend
+- Native gates: {ecr, id, rz, sx, x}
+- Full connectivity between qubits 

@@ -1,0 +1,35 @@
+Key Findings:
+
+1. Simulation Performance
+training_convergence.png
+- Achieved >99% fidelity in ideal simulation
+- Successful compression of 5-qubit state into 3 qubits
+- Stable convergence after ~150 iterations
+- Perfect reconstruction of domain wall state |00111⟩
+
+2. Hardware Implementation Challenges
+hardware_comparison.png
+- Circuit depth increased significantly after transpilation (359-898 gates)
+  • Original circuit: ~50 gates
+  • After mapping to hardware: 359-898 gates due to connectivity constraints
+- Decoherence time (T1, T2) limitations:
+  • Hardware coherence time: ~100μs
+  • Circuit execution time: ~50-70μs
+  • Quantum state degraded before completion
+- Hardware noise accumulation:
+  • Each additional gate introduces 0.1-1% error
+  • Multiplicative effect over 359+ gates
+  • Results in exponential fidelity decay
+- Final hardware fidelity: 0.5-11% depending on error mitigation
+
+3. Error Mitigation Analysis
+- Dynamical decoupling showed promise but insufficient for deep circuits
+- Increased shot count (8192) improved measurement statistics
+- Resilience level 1 provided marginal improvements
+- Identified need for circuit optimization strategies
+
+4. Key Insights for Future Work
+- Circuit depth reduction crucial for NISQ hardware
+- Error mitigation needs to be balanced with circuit complexity
+- Potential for shallow circuit alternatives
+- Importance of hardware-aware circuit design 

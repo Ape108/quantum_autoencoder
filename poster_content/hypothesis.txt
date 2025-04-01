@@ -1,0 +1,12 @@
+Research Questions:
+
+1. Can we effectively implement a quantum autoencoder using Qiskit Runtime V2 primitives that achieves high-fidelity compression of a 5-qubit domain wall state into a 3-qubit latent space?
+
+2. How does the performance of our quantum autoencoder compare between ideal simulation and real quantum hardware execution?
+
+3. What impact do error mitigation techniques (dynamical decoupling, resilience levels) have on the autoencoder's performance on real quantum hardware?
+
+Expected Outcomes:
+- Achieve >90% fidelity in ideal simulation
+- Demonstrate successful compression on IBM Quantum hardware with error mitigation
+- Establish a framework for quantum data compression using modern Qiskit primitives 

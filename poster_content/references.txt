@@ -1,0 +1,9 @@
+1. Romero, J., Olson, J. P., & Aspuru-Guzik, A. (2017). Quantum autoencoders for efficient compression of quantum data. Quantum Science and Technology, 2(4), 045001.
+
+2. IBM Quantum (2024). Qiskit Runtime V2 Primitives Documentation. https://qiskit.org/documentation/partners/qiskit_ibm_runtime/
+
+3. Cerezo, M., Poremba, A., Cincio, L., & Coles, P. J. (2020). Variational quantum state diagonalization. npj Quantum Information, 6(1), 1-10.
+
+4. Cross, A. W., Bishop, L. S., Sheldon, S., Nation, P. D., & Gambetta, J. M. (2019). Validating quantum computers using randomized model circuits. Physical Review A, 100(3), 032328.
+
+5. Kandala, A., et al. (2019). Error mitigation extends the computational reach of a noisy quantum processor. Nature, 567(7749), 491-495. 

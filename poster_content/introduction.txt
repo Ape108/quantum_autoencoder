@@ -1,0 +1,5 @@
+Quantum autoencoders represent a promising intersection of quantum computing and machine learning, offering a pathway to compress quantum information while preserving essential quantum features. This project implements a quantum autoencoder using IBM's Qiskit Runtime V2 primitives, designed to compress a 5-qubit domain wall state |00111⟩ into a 3-qubit latent space while maintaining high fidelity.
+
+autoencoder_circuit.png
+
+Unlike classical autoencoders, quantum autoencoders must preserve quantum properties such as superposition and entanglement during compression. This makes them particularly valuable for quantum state preparation, quantum memory optimization, and quantum error correction applications. 
