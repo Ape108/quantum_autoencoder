@@ -20,36 +20,46 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-env/
-ENV/
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+test_results/
+coverage/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-.project
-.pydevproject
-.settings/
+
+# Project specific
+experiments/
+docs/old/
+setup/old/
+visualizations/
+*.ipynb_checkpoints
+*.db
+*.sqlite
+*.log
+
+# Keep only essential documentation
+!docs/README.md
+!docs/TECHNICAL.md
+
+# Virtual Environment
+venv/
+env/
+ENV/
 
 # Jupyter Notebook
-.ipynb_checkpoints
 *.ipynb
 
 # Testing
-.coverage
-htmlcov/
 .tox/
-.pytest_cache/
 
 # Documentation
 docs/_build/
-
-# Experiment outputs (optional, comment out if you want to track these)
-# experiments/outputs/
-# experiments/parameters/
 
 # OS-specific
 .DS_Store
