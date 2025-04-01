@@ -60,33 +60,62 @@ class QuantumAutoencoder:
         self.n_params_u = len(self.encoder_u.parameters)
         self.n_params_v = len(self.encoder_v.parameters)
         
+        # Total number of parameters
+        self.n_parameters = self.n_params_u + self.n_params_v
+        
         # Create the full circuit
         self._create_circuit()
     
     def _create_encoder(self, name: str) -> QuantumCircuit:
-        """Create an encoder circuit with unique parameter names."""
+        """Create an encoder circuit optimized for graph structure."""
         qc = QuantumCircuit(self.n_qubits, name=f'encoder_{name}')
         
-        # Calculate number of parameters (reduced from original)
+        # Calculate number of parameters
         n_layers = self.reps
         n_qubits = self.n_qubits
         
         # Create parameters with unique names
-        params = [Parameter(f'{name}_{i}') for i in range(n_layers * n_qubits)]
+        # Each layer has:
+        # - Initial rotation layer: 2 gates per qubit (RY, RZ)
+        # - Entanglement layer: 2 rotations per pair of qubits
+        # Final layer (outside loop):
+        # - 2 gates per qubit (RY, RZ)
+        n_params_per_layer = (2 * n_qubits) + (2 * n_qubits * (n_qubits - 1) // 2)
+        n_final_params = 2 * n_qubits
+        total_params = n_layers * n_params_per_layer + n_final_params
+        
+        params = [Parameter(f'{name}_{i}') for i in range(total_params)]
         param_index = 0
         
         # Build the circuit layer by layer
         for layer in range(n_layers):
-            # Rotation layer (only RY gates)
+            # Initial rotation layer - encode table properties
             for qubit in range(n_qubits):
-                qc.ry(params[param_index], qubit)
+                qc.ry(params[param_index], qubit)  # Encode table size
+                param_index += 1
+                qc.rz(params[param_index], qubit)  # Encode query frequency
                 param_index += 1
             
-            # Entanglement layer (linear)
-            for i in range(0, n_qubits - 1, 2):
-                qc.cx(i, i + 1)
-            for i in range(1, n_qubits - 1, 2):
-                qc.cx(i, i + 1)
+            # Entanglement layer - encode relationships
+            for i in range(n_qubits):
+                for j in range(i + 1, n_qubits):
+                    # Create entanglement to represent relationship
+                    qc.cx(i, j)
+                    qc.rz(params[param_index], j)  # Encode relationship strength
+                    param_index += 1
+                    qc.cx(j, i)
+                    qc.rz(params[param_index], i)  # Encode relationship type
+                    param_index += 1
+            
+            # Add barrier for better visualization
+            qc.barrier()
+        
+        # Final rotation layer - prepare for measurement
+        for qubit in range(n_qubits):
+            qc.ry(params[param_index], qubit)
+            param_index += 1
+            qc.rz(params[param_index], qubit)
+            param_index += 1
         
         return qc
     

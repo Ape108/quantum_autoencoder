@@ -1,157 +1,171 @@
 """
-Schema metrics calculation.
+Optimization metrics for database schema analysis.
 
-This module provides functionality for calculating various metrics
-about database schemas to evaluate their quality and performance.
+This module provides metrics to evaluate schema optimization quality,
+focusing on query efficiency, storage optimization, and relationship structure.
 """
 
-from typing import Dict
-import networkx as nx
+import numpy as np
+from typing import Dict, List, Tuple
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Statevector
 from .graph import SchemaGraph
 
-class SchemaMetrics:
-    """Calculates metrics for database schemas."""
+class OptimizationMetrics:
+    """Calculate optimization metrics for database schemas."""
     
-    def __init__(self, graph: SchemaGraph):
+    def __init__(self, schema: SchemaGraph):
         """
-        Initialize the metrics calculator.
+        Initialize optimization metrics calculator.
         
         Args:
-            graph: Schema graph to analyze
+            schema: Schema graph to analyze
         """
-        self.graph = graph
+        self.schema = schema
+        self.n_tables = len(schema.graph.nodes)
+        self.n_relationships = len(schema.graph.edges)
         
-    def calculate_query_metrics(self) -> Dict[str, float]:
+        # Weights for different optimization aspects
+        self.weights = {
+            'query': 0.4,      # Prioritize query performance
+            'storage': 0.2,    # Storage efficiency
+            'relationship': 0.3,  # Relationship optimization
+            'complexity': 0.1   # Schema simplification
+        }
+    
+    def reshape_features(self, features: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Calculate query-related metrics.
+        Reshape feature vector into table and relationship features.
         
-        Returns:
-            Dictionary of metrics
-        """
-        metrics = {}
-        
-        # Calculate average query frequency
-        total_freq = 0
-        for _, props in self.graph.graph.nodes(data=True):
-            total_freq += props['query_frequency']
-        metrics['avg_query_frequency'] = total_freq / len(self.graph.graph.nodes)
-        
-        # Calculate query frequency variance
-        var_freq = 0
-        for _, props in self.graph.graph.nodes(data=True):
-            var_freq += (props['query_frequency'] - metrics['avg_query_frequency']) ** 2
-        metrics['query_frequency_variance'] = var_freq / len(self.graph.graph.nodes)
-        
-        # Calculate relationship query metrics
-        total_rel_freq = 0
-        for edge in self.graph.graph.edges(data=True):
-            _, _, props = edge
-            total_rel_freq += props['query_frequency']
-        metrics['avg_relationship_frequency'] = total_rel_freq / len(self.graph.graph.edges)
-        
-        return metrics
-        
-    def calculate_storage_metrics(self) -> Dict[str, float]:
-        """
-        Calculate storage-related metrics.
-        
-        Returns:
-            Dictionary of metrics
-        """
-        metrics = {}
-        
-        # Calculate total size
-        total_size = 0
-        for _, props in self.graph.graph.nodes(data=True):
-            total_size += props['size']
-        metrics['total_size'] = total_size
-        
-        # Calculate average table size
-        metrics['avg_table_size'] = total_size / len(self.graph.graph.nodes)
-        
-        # Calculate size variance
-        var_size = 0
-        for _, props in self.graph.graph.nodes(data=True):
-            var_size += (props['size'] - metrics['avg_table_size']) ** 2
-        metrics['size_variance'] = var_size / len(self.graph.graph.nodes)
-        
-        # Calculate average column count
-        total_cols = 0
-        for _, props in self.graph.graph.nodes(data=True):
-            total_cols += props['column_count']
-        metrics['avg_column_count'] = total_cols / len(self.graph.graph.nodes)
-        
-        return metrics
-        
-    def calculate_relationship_metrics(self) -> Dict[str, float]:
-        """
-        Calculate relationship-related metrics.
-        
-        Returns:
-            Dictionary of metrics
-        """
-        metrics = {}
-        
-        # Calculate average selectivity
-        total_sel = 0
-        for edge in self.graph.graph.edges(data=True):
-            _, _, props = edge
-            total_sel += props['selectivity']
-        metrics['avg_selectivity'] = total_sel / len(self.graph.graph.edges)
-        
-        # Calculate selectivity variance
-        var_sel = 0
-        for edge in self.graph.graph.edges(data=True):
-            _, _, props = edge
-            var_sel += (props['selectivity'] - metrics['avg_selectivity']) ** 2
-        metrics['selectivity_variance'] = var_sel / len(self.graph.graph.edges)
-        
-        # Calculate relationship density
-        n = len(self.graph.graph.nodes)
-        m = len(self.graph.graph.edges)
-        metrics['relationship_density'] = m / (n * (n - 1)) if n > 1 else 0
-        
-        return metrics
-        
-    def calculate_structural_metrics(self) -> Dict[str, float]:
-        """
-        Calculate structural metrics.
-        
-        Returns:
-            Dictionary of metrics
-        """
-        metrics = {}
-        
-        # Calculate average degree
-        total_degree = 0
-        for node in self.graph.graph.nodes:
-            total_degree += self.graph.graph.degree(node)
-        metrics['avg_degree'] = total_degree / len(self.graph.graph.nodes)
-        
-        # Calculate clustering coefficient
-        metrics['clustering_coefficient'] = nx.average_clustering(self.graph.graph)
-        
-        # Calculate average path length
-        try:
-            metrics['avg_path_length'] = nx.average_shortest_path_length(self.graph.graph)
-        except nx.NetworkXError:
-            metrics['avg_path_length'] = float('inf')
+        Args:
+            features: Feature vector from quantum state
             
-        return metrics
-        
-    def get_all_metrics(self) -> Dict[str, float]:
-        """
-        Get all available metrics.
-        
         Returns:
-            Dictionary of all metrics
+            Tuple of (table_features, relationship_features)
         """
-        metrics = {}
+        # Table features: [size, columns, query_freq, update_freq]
+        table_features = features[:self.n_tables * 4].reshape(-1, 4)
         
-        # Calculate all metric categories
-        metrics.update(self.calculate_query_metrics())
-        metrics.update(self.calculate_storage_metrics())
-        metrics.update(self.calculate_relationship_metrics())
-        metrics.update(self.calculate_structural_metrics())
+        # Relationship features: [query_freq, selectivity, cardinality]
+        relationship_features = features[self.n_tables * 4:].reshape(-1, 3)
         
-        return metrics 
+        return table_features, relationship_features
+    
+    def calculate_query_score(self, 
+                            opt_table_features: np.ndarray,
+                            orig_table_features: np.ndarray,
+                            opt_rel_features: np.ndarray,
+                            orig_rel_features: np.ndarray) -> float:
+        """
+        Calculate query optimization score.
+        Higher score means frequently accessed data is more efficiently structured.
+        """
+        # Table query optimization
+        table_score = np.mean(
+            opt_table_features[:, 2] * orig_table_features[:, 2]  # Query frequency alignment
+        )
+        
+        # Relationship query optimization
+        rel_score = np.mean(
+            opt_rel_features[:, 0] * orig_rel_features[:, 0]  # Query frequency alignment
+        )
+        
+        return 0.6 * table_score + 0.4 * rel_score
+    
+    def calculate_storage_score(self,
+                              opt_table_features: np.ndarray,
+                              orig_table_features: np.ndarray) -> float:
+        """
+        Calculate storage optimization score.
+        Higher score means better storage efficiency for access patterns.
+        """
+        # Reward size reduction for infrequently queried tables
+        infreq_reduction = np.mean(
+            (1 - opt_table_features[:, 0]) * (1 - orig_table_features[:, 2])
+        )
+        
+        # Reward size preservation for frequently queried tables
+        freq_preservation = np.mean(
+            opt_table_features[:, 0] * orig_table_features[:, 2]
+        )
+        
+        return 0.5 * infreq_reduction + 0.5 * freq_preservation
+    
+    def calculate_relationship_score(self,
+                                  opt_rel_features: np.ndarray,
+                                  orig_rel_features: np.ndarray) -> float:
+        """
+        Calculate relationship optimization score.
+        Higher score means better relationship structure for query patterns.
+        """
+        # Reward high selectivity for frequent queries
+        selectivity_score = np.mean(
+            opt_rel_features[:, 1] * orig_rel_features[:, 0]
+        )
+        
+        # Reward simpler cardinality for frequent queries
+        cardinality_score = np.mean(
+            (1 - opt_rel_features[:, 2]) * orig_rel_features[:, 0]
+        )
+        
+        return 0.7 * selectivity_score + 0.3 * cardinality_score
+    
+    def calculate_complexity_score(self,
+                                 opt_table_features: np.ndarray,
+                                 orig_table_features: np.ndarray) -> float:
+        """
+        Calculate complexity reduction score.
+        Higher score means simpler schema without losing functionality.
+        """
+        # Reward column count reduction while preserving query frequency
+        return 1 - np.mean(
+            (opt_table_features[:, 1] / orig_table_features[:, 1]) *
+            (1 - orig_table_features[:, 2])  # Weight by inverse query frequency
+        )
+    
+    def get_optimization_fidelity(self,
+                                original_circuit: QuantumCircuit,
+                                optimized_circuit: QuantumCircuit) -> Dict[str, float]:
+        """
+        Calculate optimization fidelity metrics.
+        
+        Args:
+            original_circuit: Original schema quantum circuit
+            optimized_circuit: Optimized schema quantum circuit
+            
+        Returns:
+            Dictionary of optimization metrics
+        """
+        # Get feature vectors
+        orig_features = np.abs(Statevector(original_circuit).data)[:self.n_tables * 4 + self.n_relationships * 3]
+        opt_features = np.abs(Statevector(optimized_circuit).data)[:self.n_tables * 4 + self.n_relationships * 3]
+        
+        # Reshape features
+        orig_table_features, orig_rel_features = self.reshape_features(orig_features)
+        opt_table_features, opt_rel_features = self.reshape_features(opt_features)
+        
+        # Calculate component scores
+        scores = {
+            'query': self.calculate_query_score(
+                opt_table_features, orig_table_features,
+                opt_rel_features, orig_rel_features
+            ),
+            'storage': self.calculate_storage_score(
+                opt_table_features, orig_table_features
+            ),
+            'relationship': self.calculate_relationship_score(
+                opt_rel_features, orig_rel_features
+            ),
+            'complexity': self.calculate_complexity_score(
+                opt_table_features, orig_table_features
+            )
+        }
+        
+        # Calculate weighted total
+        scores['total'] = sum(
+            self.weights[key] * score
+            for key, score in scores.items()
+            if key != 'total'
+        )
+        
+        return scores 
