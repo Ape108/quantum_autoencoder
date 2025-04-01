@@ -1,0 +1,206 @@
+{
+  "timestamp": "2025-03-31T22:32:07.003714",
+  "database_info": {
+    "tables": [
+      "Categories",
+      "Customers",
+      "Employees",
+      "Shippers",
+      "Suppliers",
+      "Products",
+      "Orders",
+      "OrderDetails"
+    ],
+    "schema": {
+      "Categories": {
+        "columns": [
+          "CategoryID",
+          "CategoryName",
+          "Description"
+        ],
+        "row_count": 5,
+        "indexes": [],
+        "foreign_keys": []
+      },
+      "Customers": {
+        "columns": [
+          "CustomerID",
+          "CustomerName",
+          "ContactName",
+          "Address",
+          "City",
+          "PostalCode",
+          "Country"
+        ],
+        "row_count": 5,
+        "indexes": [],
+        "foreign_keys": []
+      },
+      "Employees": {
+        "columns": [
+          "EmployeeID",
+          "LastName",
+          "FirstName",
+          "BirthDate",
+          "Photo",
+          "Notes"
+        ],
+        "row_count": 3,
+        "indexes": [],
+        "foreign_keys": []
+      },
+      "Shippers": {
+        "columns": [
+          "ShipperID",
+          "ShipperName",
+          "Phone"
+        ],
+        "row_count": 3,
+        "indexes": [],
+        "foreign_keys": []
+      },
+      "Suppliers": {
+        "columns": [
+          "SupplierID",
+          "SupplierName",
+          "ContactName",
+          "Address",
+          "City",
+          "PostalCode",
+          "Country",
+          "Phone"
+        ],
+        "row_count": 3,
+        "indexes": [],
+        "foreign_keys": []
+      },
+      "Products": {
+        "columns": [
+          "ProductID",
+          "ProductName",
+          "SupplierID",
+          "CategoryID",
+          "Unit",
+          "Price"
+        ],
+        "row_count": 5,
+        "indexes": [],
+        "foreign_keys": [
+          [
+            "SupplierID",
+            "SupplierID"
+          ],
+          [
+            "CategoryID",
+            "CategoryID"
+          ]
+        ]
+      },
+      "Orders": {
+        "columns": [
+          "OrderID",
+          "CustomerID",
+          "EmployeeID",
+          "OrderDate",
+          "ShipperID"
+        ],
+        "row_count": 5,
+        "indexes": [],
+        "foreign_keys": [
+          [
+            "ShipperID",
+            "ShipperID"
+          ],
+          [
+            "CustomerID",
+            "CustomerID"
+          ],
+          [
+            "EmployeeID",
+            "EmployeeID"
+          ]
+        ]
+      },
+      "OrderDetails": {
+        "columns": [
+          "OrderDetailID",
+          "OrderID",
+          "ProductID",
+          "Quantity"
+        ],
+        "row_count": 5,
+        "indexes": [],
+        "foreign_keys": [
+          [
+            "ProductID",
+            "ProductID"
+          ],
+          [
+            "OrderID",
+            "OrderID"
+          ]
+        ]
+      }
+    }
+  },
+  "compression_metrics": {
+    "fidelity": 0.9994861171836584,
+    "parameters": [
+      0.5649505802998518,
+      0.23459406920214426,
+      1.0801430807743702,
+      0.6842107823790851,
+      -0.0038967144625838028,
+      0.7318346470192886,
+      0.10873052188566093,
+      0.027984654654661024,
+      2.3914394859934127,
+      0.4467310582762991,
+      -0.002854216409347231,
+      0.0109393175784459,
+      0.036873744995000665,
+      -0.2276653572802961,
+      -0.3424236198620396,
+      1.5689635459019302,
+      1.1789054181559417,
+      0.7867220396942649,
+      0.301276648835433,
+      0.4169847346625022,
+      -0.7996146501394922,
+      -0.7602951247349543,
+      -0.3899634245474269,
+      0.39531655308142316,
+      -0.19888604108049254,
+      0.02099386164352891,
+      0.32228621650306555,
+      0.6594665410583823,
+      -0.36303787441343016,
+      0.6341096422099249
+    ]
+  },
+  "query_performance": {
+    "query_1": {
+      "original_time": 8.2e-05,
+      "optimized_time": 5.1e-05,
+      "speedup": 1.607843137254902,
+      "results_match": true
+    },
+    "query_2": {
+      "original_time": 5.2e-05,
+      "optimized_time": 4.1e-05,
+      "speedup": 1.2682926829268293,
+      "results_match": true
+    },
+    "query_3": {
+      "original_time": 6.1e-05,
+      "optimized_time": 4.7e-05,
+      "speedup": 1.297872340425532,
+      "results_match": true
+    }
+  },
+  "storage_metrics": {
+    "original_size": 36864,
+    "optimized_size": 36864,
+    "compression_ratio": 1.0
+  }
+}
