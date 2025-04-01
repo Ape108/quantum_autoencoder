@@ -60,62 +60,33 @@ class QuantumAutoencoder:
         self.n_params_u = len(self.encoder_u.parameters)
         self.n_params_v = len(self.encoder_v.parameters)
         
-        # Total number of parameters
-        self.n_parameters = self.n_params_u + self.n_params_v
-        
         # Create the full circuit
         self._create_circuit()
     
     def _create_encoder(self, name: str) -> QuantumCircuit:
-        """Create an encoder circuit optimized for graph structure."""
+        """Create an encoder circuit with unique parameter names."""
         qc = QuantumCircuit(self.n_qubits, name=f'encoder_{name}')
         
-        # Calculate number of parameters
+        # Calculate number of parameters (reduced from original)
         n_layers = self.reps
         n_qubits = self.n_qubits
         
         # Create parameters with unique names
-        # Each layer has:
-        # - Initial rotation layer: 2 gates per qubit (RY, RZ)
-        # - Entanglement layer: 2 rotations per pair of qubits
-        # Final layer (outside loop):
-        # - 2 gates per qubit (RY, RZ)
-        n_params_per_layer = (2 * n_qubits) + (2 * n_qubits * (n_qubits - 1) // 2)
-        n_final_params = 2 * n_qubits
-        total_params = n_layers * n_params_per_layer + n_final_params
-        
-        params = [Parameter(f'{name}_{i}') for i in range(total_params)]
+        params = [Parameter(f'{name}_{i}') for i in range(n_layers * n_qubits)]
         param_index = 0
         
         # Build the circuit layer by layer
         for layer in range(n_layers):
-            # Initial rotation layer - encode table properties
+            # Rotation layer (only RY gates)
             for qubit in range(n_qubits):
-                qc.ry(params[param_index], qubit)  # Encode table size
-                param_index += 1
-                qc.rz(params[param_index], qubit)  # Encode query frequency
+                qc.ry(params[param_index], qubit)
                 param_index += 1
             
-            # Entanglement layer - encode relationships
-            for i in range(n_qubits):
-                for j in range(i + 1, n_qubits):
-                    # Create entanglement to represent relationship
-                    qc.cx(i, j)
-                    qc.rz(params[param_index], j)  # Encode relationship strength
-                    param_index += 1
-                    qc.cx(j, i)
-                    qc.rz(params[param_index], i)  # Encode relationship type
-                    param_index += 1
-            
-            # Add barrier for better visualization
-            qc.barrier()
-        
-        # Final rotation layer - prepare for measurement
-        for qubit in range(n_qubits):
-            qc.ry(params[param_index], qubit)
-            param_index += 1
-            qc.rz(params[param_index], qubit)
-            param_index += 1
+            # Entanglement layer (linear)
+            for i in range(0, n_qubits - 1, 2):
+                qc.cx(i, i + 1)
+            for i in range(1, n_qubits - 1, 2):
+                qc.cx(i, i + 1)
         
         return qc
     
@@ -135,8 +106,8 @@ class QuantumAutoencoder:
         # Add encoder V
         self.circuit.compose(self.encoder_v, range(self.n_qubits), inplace=True)
         
-        # Add measurement on the first trash qubit (qubit after the latent space)
-        self.circuit.measure(0, cr[0])  # Measure first qubit as trash
+        # Add measurement
+        self.circuit.measure(self.n_latent, cr[0])
     
     def encode(self, state: QuantumCircuit, parameter_values: Optional[np.ndarray] = None) -> QuantumCircuit:
         """
@@ -236,74 +207,4 @@ class QuantumAutoencoder:
         Returns:
             Training circuit
         """
-        return self.circuit.copy()
-    
-    def compress_entry(self, features: np.ndarray, parameters: np.ndarray = None) -> Statevector:
-        """
-        Compress a single data entry using the trained autoencoder.
-        
-        Args:
-            features: Input features to compress
-            parameters: Optional parameters for the encoder circuit
-            
-        Returns:
-            Compressed quantum state
-        """
-        # Normalize input features
-        norm = np.linalg.norm(features)
-        if norm > 0:
-            features = features / norm
-            
-        # Create input circuit
-        qc = QuantumCircuit(self.n_qubits)
-        qc.initialize(features, range(self.n_qubits))
-        
-        # Apply encoder with parameters if provided
-        if parameters is not None:
-            params_u = parameters[:len(self.encoder_u.parameters)]
-            qc.compose(self.encoder_u.assign_parameters(params_u), inplace=True)
-            
-        # Get statevector of latent space
-        sv = Statevector.from_instruction(qc)
-        latent_data = sv.data[:2**self.n_latent]
-        
-        # Normalize latent state
-        latent_norm = np.linalg.norm(latent_data)
-        if latent_norm > 0:
-            latent_data = latent_data / latent_norm
-            
-        return Statevector(latent_data)
-        
-    def decode_features(self, latent_state: Statevector, parameters: np.ndarray = None) -> np.ndarray:
-        """
-        Decode compressed features back to original space.
-        
-        Args:
-            latent_state: Compressed quantum state
-            parameters: Optional parameters for the decoder circuit
-            
-        Returns:
-            Decoded features
-        """
-        # Normalize latent state
-        latent_data = latent_state.data
-        norm = np.linalg.norm(latent_data)
-        if norm > 0:
-            latent_data = latent_data / norm
-            
-        # Create circuit with latent state
-        qc = QuantumCircuit(self.n_qubits)
-        qc.initialize(latent_data, range(self.n_latent))
-        
-        # Reset trash qubits to |0>
-        for i in range(self.n_latent, self.n_qubits):
-            qc.reset(i)
-            
-        # Apply decoder with parameters if provided
-        if parameters is not None:
-            params_v = parameters[len(self.encoder_u.parameters):]
-            qc.compose(self.encoder_v.assign_parameters(params_v).inverse(), inplace=True)
-            
-        # Get final state
-        sv = Statevector.from_instruction(qc)
-        return sv.data 
+        return self.circuit.copy() 
