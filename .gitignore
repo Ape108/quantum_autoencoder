@@ -47,12 +47,11 @@ htmlcov/
 # Documentation
 docs/_build/
 
-# Experiment outputs (optional, comment out if you want to track these)
-# experiments/outputs/
-# experiments/parameters/
-
 # OS-specific
 .DS_Store
 Thumbs.db
+
+# Generated files
 *.png
+!docs/references/images/architecture.png
 *.pyc 

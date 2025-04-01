@@ -67,7 +67,7 @@ class QuantumAutoencoder:
         """Create an encoder circuit with unique parameter names."""
         qc = QuantumCircuit(self.n_qubits, name=f'encoder_{name}')
         
-        # Calculate number of parameters (reduced from original)
+        # Calculate number of parameters
         n_layers = self.reps
         n_qubits = self.n_qubits
         

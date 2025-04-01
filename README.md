@@ -1,207 +1,214 @@
-# Quantum Autoencoder
+# Quantum Autoencoder for Domain Wall State Compression
 
-A high-performance quantum autoencoder implementation using Qiskit V2 primitives, achieving >99.9% fidelity in quantum state compression.
+This project implements a quantum autoencoder (QAE) that achieves high-fidelity compression of quantum states, demonstrated on a 5-qubit domain wall state |00111⟩ compressed to 3 qubits. Using a U-V encoder architecture and Qiskit primitives, we achieve >99.9% fidelity in state reconstruction.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A51.0.0-6133BD)](https://qiskit.org/)
+## Theoretical Background
 
-## Overview
+### Quantum Autoencoders
 
-This project implements a quantum autoencoder using the U-V encoder architecture, designed for efficient quantum state compression with built-in error detection capabilities. Our implementation achieves:
+Quantum autoencoders are quantum circuits designed to compress quantum states into a lower-dimensional latent space while preserving essential quantum information. Similar to classical autoencoders, they consist of:
 
-- 99.99% fidelity in state reconstruction
-- 40% qubit reduction (5→3 qubits)
-- Robust error detection
-- Fast training (~1.7s per trial)
+1. **Encoder (U)**: Maps input state |ψ⟩ to a compressed representation
+2. **Latent Space**: Lower-dimensional representation of the quantum state
+3. **Decoder (V)**: Reconstructs the original state from the compressed representation
 
-![Quantum Autoencoder Architecture](docs/images/architecture.png)
+### U-V Architecture
 
-## Key Features
+Our implementation uses a U-V encoder architecture:
 
-- **U-V Encoder Architecture**
-  - Separate U and V encoding circuits
-  - Parameterized rotation layers
-  - Efficient entanglement strategy
-
-- **Advanced Error Mitigation**
-  - Dynamical decoupling
-  - Resilience level control
-  - Noise-aware training
-
-- **Qiskit V2 Integration**
-  - Modern primitive support
-  - Hardware-efficient execution
-  - Optimized parameter binding
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/Ape108/quantum_autoencoder.git
-cd quantum_autoencoder
+```
+|ψ⟩ ─── U ─── V ───
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+Where:
+- U: Parameterized encoding circuit
+- V: Parameterized decoding circuit
+- Dimension reduction: 5 qubits → 3 qubits (40% reduction)
 
-## Quick Start
+The architecture is designed to minimize information loss by:
+1. Separating encoding and decoding parameters
+2. Using alternating layers of rotation and entanglement gates
+3. Implementing efficient parameter reuse
 
-### Domain Wall State Compression
-```python
-from quantum_autoencoder.examples.domain_wall import run_domain_wall_example
+### Mathematical Framework
 
-# Run with default settings
-run_domain_wall_example()
+The compression process can be described as:
 
-# Or customize options
-options = {
-    "optimization_level": 3,
-    "resilience_level": 1,
-    "shots": 1024,
-    "dynamical_decoupling": {"enable": True}
-}
-run_domain_wall_example(options=options)
-```
+1. **Input State**: |ψ⟩ ∈ ℂ^(2^n)
+2. **Encoding**: U(θ)|ψ⟩ = |ϕ⟩|0⟩^(n-k)
+3. **Decoding**: V(φ)|ϕ⟩|0⟩^(n-k) ≈ |ψ⟩
+4. **Fidelity**: F = |⟨ψ|V(φ)U(θ)|ψ⟩|²
 
-### Error Detection
-```python
-from quantum_autoencoder.examples.error_detection import test_error_detection
-
-# Test error detection capabilities
-test_error_detection()
-```
-
-## Results
-
-### Domain Wall State Compression
-- Input state: |00111⟩
-- Compressed to: 3 qubits
-- Fidelity: 99.99%
-- Training time: ~1.7s per trial
-
-![Training Progress](experiments/outputs/training_progress.png)
-
-### Error Detection Performance
-| Error Rate | Reconstruction Fidelity |
-|------------|------------------------|
-| 0%         | 99.97%                |
-| 5%         | 99.74%                |
-| 10%        | 99.97%                |
-| 20%        | 0.04%                 |
-
-![Error Detection](experiments/outputs/error_detection.png)
+Where:
+- n: Number of input qubits (5)
+- k: Number of latent qubits (3)
+- θ, φ: Trainable parameters
+- |0⟩^(n-k): Auxiliary qubits in |0⟩ state
 
 ## Implementation Details
 
 ### Circuit Architecture
+
 ```python
 class QuantumAutoencoder:
     def __init__(self, n_qubits: int, n_latent: int, reps: int = 2):
         """
         Args:
-            n_qubits: Number of input qubits
-            n_latent: Number of latent qubits
-            reps: Number of repetitions in parameterized circuit
+            n_qubits: Number of input qubits (5)
+            n_latent: Number of latent qubits (3)
+            reps: Number of repetition layers
         """
 ```
 
-### Key Components
-1. **Encoder Circuit**
-   - Parameterized rotation layers
-   - Linear entanglement strategy
-   - Separate U and V components
+#### Encoder Structure
+Each encoder (U and V) consists of:
+1. **Rotation Layers**: RY gates with trainable parameters
+2. **Entanglement Layers**: CX gates in linear configuration
+3. **Parameter Sharing**: Efficient reuse of parameters across layers
 
-2. **Training Module**
-   - SPSA optimizer
-   - Cost function based on SWAP test
-   - Built-in error mitigation
+### Training Process
 
-3. **Verification Tools**
-   - Statevector fidelity
-   - Statistical measurements
-   - Visual state comparison
+1. **Cost Function**:
+   ```
+   C(θ,φ) = 1 - F = 1 - |⟨ψ|V(φ)U(θ)|ψ⟩|²
+   ```
 
-## Directory Structure
+2. **Optimization**:
+   - Algorithm: SPSA (Simultaneous Perturbation Stochastic Approximation)
+   - Learning rate: 0.15
+   - Perturbation size: 0.1
+   - Trust region: Enabled
+   - Multiple random initializations: 5 trials
 
-```
-quantum_autoencoder/
-├── docs/                    # Documentation
-│   ├── TECHNICAL.md        # Detailed technical documentation
-│   ├── CREDITS.md          # Credits and references
-│   ├── experiments.md      # Experiment results
-│   └── images/             # Documentation images
-├── experiments/            # Experiment results
-│   ├── outputs/            # Generated visualizations
-│   └── parameters/         # Saved model parameters
-├── quantum_autoencoder/    # Main package
-│   ├── core/              # Core implementation
-│   └── examples/          # Example applications
-├── setup/                  # Setup scripts
-├── setup.py               # Package setup
-└── requirements.txt       # Dependencies
-```
+3. **Error Mitigation**:
+   - Dynamical decoupling
+   - Resilience level: 1
+   - Optimized shot count: 1024
 
-## Advanced Usage
+### Domain Wall State Example
 
-### Custom State Compression
-```python
-from quantum_autoencoder.core.circuit import QuantumAutoencoder
-from qiskit import QuantumCircuit
+The domain wall state |00111⟩ was chosen for its:
+1. Clear boundary between 0s and 1s
+2. Entanglement properties
+3. Practical relevance in condensed matter physics
 
-# Create custom input state
-qc = QuantumCircuit(5)
-# ... prepare your state ...
+## Results
 
-# Initialize autoencoder
-autoencoder = QuantumAutoencoder(5, 3, reps=3)
+### Performance Metrics
 
-# Encode and decode
-encoded_state = autoencoder.encode(qc, parameter_values=best_params)
-reconstructed_state = autoencoder.decode(encoded_state, parameter_values=best_params)
-```
+1. **Compression Ratio**: 40% (5→3 qubits)
+2. **Fidelity**: 99.98%
+3. **Training Time**: ~2.06s per trial
+4. **Convergence**: Typically within 500 iterations
 
-### Error Mitigation Options
-```python
-options = {
-    "optimization_level": 3,
-    "resilience_level": 2,
-    "shots": 4096,
-    "dynamical_decoupling": {
-        "enable": True,
-        "scheme": "XY4"
-    }
-}
+### Visualization Outputs
+
+The code generates:
+1. Input state visualization
+2. Encoded (latent) state representation
+3. Reconstructed state comparison
+4. Training convergence plots
+
+## Usage
+
+### Installation
+```bash
+# Clone repository
+git clone <repository-url>
+cd quantum-autoencoder
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-## Contributing
+### Running the Example
+```bash
+python -m quantum_autoencoder.examples.domain_wall
+```
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes:
+### Requirements
+- Python ≥3.9
+- Qiskit ≥1.0.0
+- Qiskit Machine Learning ≥0.8.2
+- NumPy ≥1.21.0
+- Matplotlib ≥3.4.0
+- SciPy ≥1.7.0
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Implications and Applications
 
-## References
+1. **Quantum Data Compression**:
+   - Efficient storage of quantum states
+   - Reduced qubit requirements for quantum memory
+   - Potential for quantum error correction
 
-1. Romero, J., Olson, J. P., & Aspuru-Guzik, A. (2017). Quantum autoencoders for efficient compression of quantum data. Quantum Science and Technology, 2(4), 045001.
-2. [Qiskit Documentation](https://qiskit.org/documentation/)
-3. [Qiskit V2 Primitives Guide](https://docs.quantum.ibm.com/api/migration-guides/v2-primitives)
+2. **Quantum Machine Learning**:
+   - Feature extraction in quantum data
+   - Dimensionality reduction for quantum algorithms
+   - Quantum state preparation optimization
+
+3. **Quantum Simulation**:
+   - Efficient representation of many-body states
+   - Compression of quantum simulation results
+   - Study of quantum phase transitions
+
+4. **Practical Impact**:
+   - Reduced hardware requirements
+   - Improved quantum circuit depth
+   - Enhanced noise resilience
+
+## Future Directions
+
+1. **Architecture Optimization**:
+   - Alternative entanglement patterns
+   - Adaptive parameter schemes
+   - Hardware-efficient variants
+
+2. **Application Expansion**:
+   - Multiple state compression
+   - Dynamic compression ratios
+   - Integration with quantum error correction
+
+3. **Performance Enhancement**:
+   - Advanced error mitigation
+   - Improved optimization strategies
+   - Hardware-specific optimizations
+
+## References and Citations
+
+This implementation builds upon and extends several key works:
+
+1. **Original Quantum Autoencoder Paper**:
+   - Romero, J., Olson, J. P., & Aspuru-Guzik, A. (2017). Quantum autoencoders for efficient compression of quantum data. Quantum Science and Technology, 2(4), 045001.
+
+2. **Reference Implementations**:
+   - Original circuit design by [@qiaoyi213](https://github.com/qiaoyi213) - see `references/Main Algorithm Quantum Circuit Autoencoder.py`
+   - Base quantum circuit implementation - see `references/qc.py`
+   - Detailed technical documentation - see `docs/references/TECHNICAL.md`
+   - Experimental results and analysis - see `docs/references/experiments.md`
+   - Credits and acknowledgments - see `docs/references/CREDITS.md`
+
+3. **Technical Resources**:
+   - [Qiskit Documentation](https://qiskit.org/documentation/)
+   - [Qiskit V2 Primitives Guide](https://docs.quantum.ibm.com/api/migration-guides/v2-primitives)
+
+The reference implementations and documentation have been substantially modified and enhanced in this project to:
+- Implement V2 primitives for better hardware compatibility
+- Add comprehensive error mitigation
+- Improve training convergence
+- Enhance visualization capabilities
+- Streamline the codebase for the domain wall example
+
+## Documentation Structure
+
+```
+docs/
+└── references/
+    ├── TECHNICAL.md     # Original technical implementation details
+    ├── experiments.md   # Original experimental results
+    ├── CREDITS.md      # Original credits and acknowledgments
+    └── images/         # Original architecture diagrams and figures
+```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Original quantum autoencoder concept by Romero et al.
-- Qiskit team for V2 primitives
-- [@qiaoyi213](https://github.com/qiaoyi213) for the reference implementation
-
-## Contact
-
-- **Issues:** Please use the [GitHub issue tracker](https://github.com/Ape108/quantum_autoencoder/issues)
-- **Questions:** Open a [Discussion](https://github.com/Ape108/quantum_autoencoder/discussions) 
+MIT License 
